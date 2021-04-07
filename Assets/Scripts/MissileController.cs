@@ -6,18 +6,21 @@ using UnityEngine;
 
 public class MissileController : MonoBehaviour
 {
-    private GameObject theDroneController;
-    private GameObject theGameController;
-    
-    private DroneController theDroneControllerScript;
+    // game objects
+    private GameObject         theDroneController;
+    private GameObject         theGameController;
+    public GameObject          theBombFlames;
+
+    // scripts
+    private DroneController    theDroneControllerScript;
     private GameplayController theGameControllerScript;
     
-    private Rigidbody missileRb;
-    private Vector3 realGravity;
-    private float gravityModifier = 1.0f;
-    private float speed = 1.0f;
+    private Rigidbody missileRb; // missile Rb
+    private Vector3  realGravity;
+    private float    gravityModifier = 1.0f;
+    private float    speed           = 1.0f;
 
-    public AudioClip missileExplosion;
+    public AudioClip missileExplosion; // explosion sound
 
     // Start is called before the first frame update
     void Start()
@@ -58,63 +61,82 @@ public class MissileController : MonoBehaviour
     private void OnCollisionEnter(Collision collision)
     {
         if (collision.gameObject.CompareTag("Ground") ||
+            collision.gameObject.CompareTag("Patio") ||
             collision.gameObject.CompareTag("Boundary Top") ||
-            collision.gameObject.CompareTag("Boundary Bottom"))
+            collision.gameObject.CompareTag("Boundary Bottom") ||
+            collision.gameObject.CompareTag("Power Up") ||
+            collision.gameObject.CompareTag("Enemy Warrior") ||
+            collision.gameObject.CompareTag("Jumok Tree") ||
+            collision.gameObject.CompareTag("Newngsowha Tree") ||
+            collision.gameObject.CompareTag("DanpungMix Tree") ||
+            collision.gameObject.CompareTag("Black Car") ||
+            collision.gameObject.CompareTag("Table") ||
+            collision.gameObject.CompareTag("Umbrella"))
         {
-            // missile has landed - play bomb explosion at current position
-            if (transform.position.z > -80)
+            // missile has landed (or hit end barriers/ landed on a powerup/ trees
+            // or even bounced on a zombies head), so play bomb explosion at current position
+            // and allow another bomb launch if not too far down screen
+
+            if (transform.position.z > -78)
             {
                 // ok to spawn another missile, so reset flag
                 theDroneControllerScript.missileLaunched = false;
             }
 
+            // play explosion effect
             StartCoroutine(PlayingExplosion());
+
+            // disable renderer to hide object while playing explosion
             gameObject.GetComponent<MeshRenderer>().enabled = false;
-
-            // check if player within a certain range and if so popup hit by blast wave message and 
-            // decrease points & 15% energy
-
         }
         else if (collision.gameObject.CompareTag("Player"))
         {
-            // collided with player
-            theGameControllerScript.UpdatePlayerScore(-10);
+            // collided with player - knock off points
+            theGameControllerScript.UpdatePlayerScore(-20);
 
-            Debug.Log("BIG BOOM - YOU'RE DEAD!");
-            
-            // display direct hit message and knock off 35% energy of player
+            // display direct hit message
+            theGameControllerScript.PostStatusMessage("Direct Bomb Hit! Lose 20 Points!");
 
-            // do some animation or effect on player position here
+            // do explosion animation
             StartCoroutine(PlayingExplosion());
         }
     }
 
-    public GameObject theBombFlames;
-    
     IEnumerator PlayingExplosion()
     {
-        // play the sound and wait for it to finish
-        GetComponent<AudioSource>().clip = missileExplosion;
+        // play the explosion sound and wait for it to finish
+        GetComponent<AudioSource>().clip        = missileExplosion;
         GetComponent<AudioSource>().playOnAwake = true;
-        GetComponent<AudioSource>().volume = 0.3f;
-        GetComponent<AudioSource>().Play(); // play explosion noise
+        GetComponent<AudioSource>().volume      = 0.3f;
+        GetComponent<AudioSource>().Play(); 
         
-        //  play particle effect
+        //  play explosion particle effect
         if (theBombFlames != null)
         {
             theBombFlames.GetComponentInChildren<ParticleSystem>().Play();
         }
         
+        GameObject thePlayer = theGameControllerScript.thePlayer;
+
+        // Give Player damage if too close to explosion
+        if (Vector3.Distance(thePlayer.transform.position, transform.position) < 10f)
+        {
+            // player within range to take blast wave damage
+            theGameControllerScript.UpdatePlayerScore(-10);
+            theGameControllerScript.PostStatusMessage("Blast Wave Damage! Lose 10 Points!");
+        }
+
         // suspend deletiom for a bit
         yield return new WaitForSeconds(0.01f);
 
-        //  set it dead if not destroyed already (added due to timing issues)
+        //  set it dead if not destroyed already (added due to timing issues) at end of animation clip
         if (theBombFlames != null)
         {
             Destroy(gameObject, theBombFlames.GetComponentInChildren<ParticleSystem>().duration);
         }
         else
         {
+            // ensure dead
             Destroy(gameObject, 2f);
         }
     }

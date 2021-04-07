@@ -17,7 +17,7 @@ public class KillTheBomb : MonoBehaviour
     // Update is called once per frame
     void Update()
     {
-        // needed as bomb particle would never die! Fucker!
+        // needed as bomb particle would never die!
         if (ps)
         {
             if (!ps.IsAlive())

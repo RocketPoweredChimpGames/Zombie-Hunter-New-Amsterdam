@@ -4,19 +4,22 @@ using UnityEngine;
 
 public class InstructionPanelController : MonoBehaviour
 {
-    private GameObject thePlayer = null;
-    private Camera theMainCamera = null;
-    private GameObject thePlayerPanel = null;
-    private GameObject theGameController = null;
-    private GameplayController theGameControllerScript = null;
+    private GameObject         thePlayer               = null; // our player
+    private Camera             theMainCamera           = null; // main camera
+    private GameObject         thePlayerPanel          = null; // the main gameplay panel
+    private GameObject         theCreditsReplayPanel   = null; // the credits and replay option panel
+
+    private GameObject         theGameController       = null; // game controller
+    private GameplayController theGameControllerScript = null; // game controller script
 
     // Start is called before the first frame update
     void Start()
     {
         // find the score/lives panel (must be active to be able to find, then immediately de-activate!
-        thePlayerPanel = GameObject.Find("Score Lives Panel");
-
-        theGameController = GameObject.Find("GameplayController");
+        // and same for credits replay panel
+        thePlayerPanel        = GameObject.Find("Score Lives Panel");
+        theCreditsReplayPanel = GameObject.Find("Credits Replay Panel");
+        theGameController     = GameObject.Find("GameplayController");
 
         if (theGameController != null)
         {
@@ -51,9 +54,21 @@ public class InstructionPanelController : MonoBehaviour
         }
 
         // only now do we turn off player panel as we have got all the objects we need to reactivate later
-        if (thePlayerPanel)
+
+        if (theCreditsReplayPanel)
         {
             // found it, immediately deactivate as we are in Instructions Demo Panel now
+            theCreditsReplayPanel.SetActive(false);
+        }
+        else
+        {
+            Debug.Log("Can't find Credits Replay Panel from Instruction Panel start()");
+        }
+
+        // turn off player score panel
+        if (thePlayerPanel)
+        {
+            // found it, immediately deactivate as we are in Instructions Panel now
             thePlayerPanel.SetActive(false);
         }
     }
@@ -67,16 +82,35 @@ public class InstructionPanelController : MonoBehaviour
             ActivatePlayerPanel();
             theGameControllerScript.StartGame(true);
         }
+
+        if (Input.GetKeyDown(KeyCode.R))
+        {
+            // enable credits panel, and disable this one
+            ActivateCreditsReplayPanel();
+        }
     }
 
     void ActivatePlayerPanel() 
     {
-        // disable this panel
+        // disable this panel and credits replay panel
         gameObject.SetActive(false);
+        theCreditsReplayPanel.SetActive(false);
 
-        // turn on player, player panel and activate camera
+        // turn on player panel, activate player and camera
         thePlayerPanel.SetActive(true);
         thePlayer.SetActive(true);
         theMainCamera.gameObject.SetActive(true);
+    }
+    void ActivateCreditsReplayPanel()
+    {
+        // disable this panel
+        gameObject.SetActive(false);
+
+        // turn off player, turn on credits replay panel  (and activate camera?)
+        thePlayerPanel.SetActive(false);
+        thePlayer.SetActive(false);
+        
+        theCreditsReplayPanel.SetActive(true);
+        //theMainCamera.gameObject.SetActive(true); // maybe????
     }
 }

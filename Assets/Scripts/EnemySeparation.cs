@@ -10,11 +10,15 @@ public class EnemySeparation : MonoBehaviour
     // Start is called before the first frame update
     void Start()
     {
-        enemyObjects = GameObject.FindGameObjectsWithTag("Enemy Warrior");    
+        //enemyObjects = GameObject.FindGameObjectsWithTag("Enemy Warrior Base Object");    
+        enemyObjects = GameObject.FindGameObjectsWithTag("Enemy Warrior");
     }
 
    public void RemoveDestroyedEnemy(GameObject deadEnemy)
     {
+        enemyObjects = GameObject.FindGameObjectsWithTag("Enemy Warrior");
+        //enemyObjects = GameObject.FindGameObjectsWithTag("Enemy Warrior Base Object");
+
         // find and remove a dead enemy from this list before destroying elsewhere
         int i = 0;
 
@@ -34,6 +38,9 @@ public class EnemySeparation : MonoBehaviour
     // Update is called once per frame
     void Update()
     {
+        enemyObjects = GameObject.FindGameObjectsWithTag("Enemy Warrior");
+        //enemyObjects = GameObject.FindGameObjectsWithTag("Enemy Warrior Base Object");
+        
         // keep the spacing between other enemy objects
         foreach (GameObject go in enemyObjects)
         {

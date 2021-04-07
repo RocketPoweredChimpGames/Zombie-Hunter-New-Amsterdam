@@ -34,6 +34,18 @@ TagManager:
   - Enemy Warrior Base Object
   - Boundary Top
   - Boundary Bottom
+  - Player Base Object
+  - Credits Replay Panel
+  - Jumok Tree
+  - Newngsowha Tree
+  - DanpungMix Tree
+  - Patio
+  - Tocus
+  - Sonamoo Tree
+  - Black Car
+  - Table
+  - Umbrella
+  - Beut Tree
   layers:
   - Default
   - TransparentFX
