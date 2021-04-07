@@ -46,6 +46,13 @@ TagManager:
   - Table
   - Umbrella
   - Beut Tree
+  - Concrete
+  - Ponds
+  - Grassy Areas
+  - Building
+  - Skyscraper
+  - High Score
+  - Player Head Lamp
   layers:
   - Default
   - TransparentFX

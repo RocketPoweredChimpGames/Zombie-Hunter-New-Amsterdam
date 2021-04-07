@@ -71,7 +71,12 @@ public class MissileController : MonoBehaviour
             collision.gameObject.CompareTag("DanpungMix Tree") ||
             collision.gameObject.CompareTag("Black Car") ||
             collision.gameObject.CompareTag("Table") ||
-            collision.gameObject.CompareTag("Umbrella"))
+            collision.gameObject.CompareTag("Umbrella") ||
+            collision.gameObject.CompareTag("Concrete") ||
+            collision.gameObject.CompareTag("Ponds") ||
+            collision.gameObject.CompareTag("Grassy Areas") ||
+            collision.gameObject.CompareTag("Building") ||
+            collision.gameObject.CompareTag("Skyscraper"))
         {
             // missile has landed (or hit end barriers/ landed on a powerup/ trees
             // or even bounced on a zombies head), so play bomb explosion at current position

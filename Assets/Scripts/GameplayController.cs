@@ -42,7 +42,6 @@ public class GameplayController : MonoBehaviour
     public  AudioClip   lifeLostNoise;          // life lost noise
     
     // add later
-    //public AudioClip  cheeringNoiseLowScore;  // ordinary cheering at end
     //public AudioClip  cheeringNoiseHighScore; // cheering when highscore beaten
 
     private AudioSource theAudioSource;         // audio source component
@@ -55,6 +54,7 @@ public class GameplayController : MonoBehaviour
     public TMP_Text     EnemyWaveNum;           // enemy wave number
     public TMP_Text     EnemiesRemaining;       // remaining enemies this wave
     public TMP_Text     EnemiesKilledTotal;     // total enemies killed in game
+    public TMP_Text     HighScore;              // player high score
 
     private List<PowerUp> currentPowerups;      // current powerups on screen for grand finale destruction sequence
     private SpawnManager theSpawnManager;       // the spawn manager
@@ -69,19 +69,19 @@ public class GameplayController : MonoBehaviour
     public  bool playingCountdown = false;  // are we playing countdown noise
 
     // player variables
-    private int maxPowerUps  = 100;         // maximum powerups on screen at a time
+    private int maxPowerUps  = 200;         // maximum powerups on screen at a time
     private int playerLives  = 3;           // number of player lives
     public  int playerHealth = 100;         // initial full health
     private int playerScore  = 0;           // initial player score
-    
+    private int highScore    = 0;           // put in a file later to keep
     private int[] highScores;               // top ten high scores - probably read them from a serialised JSON file later on
-    private int highScore;                  // put in a file later to keep
+    
 
     // game stats stuff
     public  int enemyWaveNumber       = 0;  // wave number
     private int totalEnemiesKilled    = 0;  // total of all kills
     private int enemiesKilledThisWave = 0;  // how many killed on current wave
-    private int maxEnemiesPerWave     = 30; // maximum per wave before starting next wave
+    private int maxEnemiesPerWave     = 50; // maximum per wave before starting next wave
 
     // sky box to use at start
     public Material theDaySkybox; // daytime sky box
@@ -104,18 +104,22 @@ public class GameplayController : MonoBehaviour
         {
             // setting bGameStarted will start game spawning on next update() in SpawnController, and enable Player controls
             // in player controller
-            bGameStarted = bStart; // start game
-            enemyWaveNumber = 1; // first wave
+            bGameOver       = false;
+            bGameStarted    = bStart; // start game
+            enemyWaveNumber = 1;      // first wave
+
+            if (highScore == 0)
+            {
+                string hiScore = "0";
+
+                HighScore.SetText(hiScore.ToString());
+            }
 
             PauseGame(false); // turn off pause
 
             // update player display
             StartWaveNumber(enemyWaveNumber);
             EnemiesKilledTotal.SetText(totalEnemiesKilled.ToString());
-
-            // FOR TESTING OF END GAME RESTART
-            //playerHealth = 2;
-            //playerLives = 1;
 
             // start routine to decay health periodically
             StartHealthCountdown();
@@ -186,13 +190,14 @@ public class GameplayController : MonoBehaviour
             Destroy(drone);
         }
 
-        string blank = "Game Over! Press 'S' to Restart!";
-        StatusDisplay.text = blank.ToString();
+        string blank = " ";
 
-        // stop animations and music
-        Time.timeScale = 0f;
-        AudioListener.pause = true;
+        blank = "Game Over! Press 'S' to Restart!";
         StatusDisplay.text = blank.ToString();
+        
+        // stop animations and music
+        Time.timeScale      = 0f;
+        AudioListener.pause = true;
     }
 
     public bool IsGameOver()
@@ -381,12 +386,18 @@ public class GameplayController : MonoBehaviour
         // update the score and display on the text panel
         playerScore += scoreChange;
 
-        if (playerScore <0)
+        if (playerScore == 0)
         {
             playerScore = 0;
         }
 
         ScorePlayer.text = playerScore.ToString();
+
+        if (playerScore > highScore)
+        {
+            string high = playerScore.ToString();
+            HighScore.SetText(high.ToString());
+        }
     }
 
 

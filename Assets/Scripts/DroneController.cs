@@ -36,7 +36,7 @@ public class DroneController : MonoBehaviour
         droneStartVectorAtHeight  = gameObject.transform.position; // it's starting position and height
 
         // drone must be above this height by the time it reaches here to avoid buildings
-        mustAvoidBuildingsVectorHeight = new Vector3(droneStartVectorAtHeight.x, 20f, 33f);
+        mustAvoidBuildingsVectorHeight = new Vector3(droneStartVectorAtHeight.x, 33f, 33f);
     }
 
     // Update is called once per frame

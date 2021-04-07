@@ -17,15 +17,15 @@ public class SpawnManager : MonoBehaviour
     private GameplayController theGameManager;
     private GameObject thePlayer;
 
-    // testing only - private vars later
-    private float droneSpawnInterval     = 15.0f; // spawn a drone every 15 seconds
-    private float warriorSpawnInterval   = 10.0f; // spawn a warrior every 10 seconds until we have a maximum number
-    private float powerPillSpawnInterval = 8.0f;  // spawn a power up pill every 8 seconds
+    // testing only - private vars later             ALL TIMES BELOW allow for two zones now!
+    private float droneSpawnInterval     = 6.0f;  // spawn a drone every 6 seconds (or 12s in zone you're in now)
+    private float warriorSpawnInterval   = 6.0f;  // spawn a warrior every 6 seconds until we have a maximum number
+    private float powerPillSpawnInterval = 5.0f;  // spawn a power up pill every 10 seconds
 
     // used for waves of enemies
-    public int maxDronesPerSpawn       = 2;
+    public int maxDronesPerSpawn       = 3;
     public int maxWarriorsPerSpawn     = 3;
-    public int maxWarriorsOnScreen     = 50;
+    public int maxWarriorsOnScreen     = 60;
     public int currentWarriorsPerSpawn = 1; // starts at one, increases with wave numbers to max of maxPerSpawn
 
     public bool startedSpawning = false;
@@ -38,10 +38,8 @@ public class SpawnManager : MonoBehaviour
         theGameControllerScript = theGameManager.GetComponent<GameplayController>();
 
         thePlayer = GameObject.FindGameObjectWithTag("Player");         // player
-        // old tried this in a container didnt work thePlayer!! = GameObject.FindGameObjectWithTag("Player Base Object"); // player
     }
 
-   
     // Update is called once per frame
     void Update()
     {
@@ -57,7 +55,8 @@ public class SpawnManager : MonoBehaviour
         }
     }
 
-
+    int warriorSpawnZone = 0;
+    
     // Start Spawning
     void SpawnWarrior()
     {
@@ -68,18 +67,29 @@ public class SpawnManager : MonoBehaviour
         if (warriorToSpawn != null)
         {
             // calculate a different number to spawn depending on wave number using MOD function
-            int nToSpawnNow = nWaveNumber % maxWarriorsPerSpawn; // gets remainder (between 0 and maxWarriorsPerSpawn-1)
+            int nToSpawnNow = nWaveNumber;
 
             //Debug.Log("Spawning " + nToSpawnNow + " zombies PER spawn function call on level " + nWaveNumber + ".");
-
-            if (nToSpawnNow ==0)
+            
+            switch (nWaveNumber)
             {
-                // set to one
-                nToSpawnNow = 1;
+                case 1:  { nToSpawnNow =1; break;}
+                case 2:  { nToSpawnNow =2; break;}
+                case 3:  { nToSpawnNow =3; break;}
+                case 4:  { nToSpawnNow =4; break;}
+                case 5:  { nToSpawnNow =5; break;}
+                default: { nToSpawnNow =5; break;}
             }
 
-            int maxPerWave = theGameControllerScript.GetMaxEnemiesPerWave();
+            int maxPerWave                 = theGameControllerScript.GetMaxEnemiesPerWave();
             int numberOfEnemiesOnScreenNow = GameObject.FindGameObjectsWithTag("Enemy Warrior Base Object").Length;
+
+            warriorSpawnZone++; // increment zone
+
+            if (warriorSpawnZone > 2)
+            {
+                warriorSpawnZone = 1; // set to original
+            }
 
             // check if spawning these would go over the maximum allowed number of enemies on screen
             if (numberOfEnemiesOnScreenNow <= maxPerWave - nToSpawnNow)
@@ -89,46 +99,30 @@ public class SpawnManager : MonoBehaviour
                     // start to spawn enemies, power ups at regular intervals
                     // spawn in different places too
 
-                    int   spawnZone = Random.Range(0, 3);
                     float randomX   = 0f;
                     float randomZ   = 0f;
 
-                    spawnZone = 1; // for test
-
-                    if (spawnZone == 1)
+                    if (warriorSpawnZone == 1)
                     {
                         // original spawn zone playfield
-                        //randomX = Random.Range(  8f, 50f);
-                        //randomZ = Random.Range(-58f, 55f);
+                        // randomX = Random.Range(  8f, 50f);
+                        // randomZ = Random.Range(-58f, 55f);
 
-                        // new big area
+                        // new bigger area by original player site
                         randomX = Random.Range(10f, 160f);
-                        randomZ = Random.Range(0f, 175f);
+                        randomZ = Random.Range(0f,  175f);
                         Debug.Log("Spawning Warrior in Zone 1");
                     }
                     
-                    if (spawnZone == 2)
+                    if (warriorSpawnZone == 2)
                     {
-                        // top left near smaller big building
-                        randomX = Random.Range(7f, 30f);
-                        randomZ = Random.Range(3f, 25f);
-                        Debug.Log("Spawning Warrior in Zone 2");
-                    }
+                        // top left near smaller posh big building / down side of lake 
+                        // Don't forget Unity uses 10x10 scale for 1 unit!
+                        // so screen positions in Editor relate to original x SCALE FACTOR used on original 10x10 unit plane.
+                        randomX = Random.Range(-175f, -145f);
+                        randomZ = Random.Range(-150f,  190f);
 
-                    if (spawnZone == 3)
-                    {
-                        // original spawn zone
-                        randomX = Random.Range(-15f, 15f);
-                        randomZ = Random.Range(-10f, 80f);
-                        Debug.Log("Spawning Warrior in Zone 3");
-                    }
-
-                    if (spawnZone == 4)
-                    {
-                        // original spawn zone
-                        randomX = Random.Range(-15f, 15f);
-                        randomZ = Random.Range(-10f, 80f);
-                        Debug.Log("Spawning Warrior in Zone 4");
+                        //Debug.Log("Spawning Warrior in Zone 2");
                     }
 
                     Vector3    randomSpawnPos = new Vector3(randomX, warriorToSpawn.transform.position.y, randomZ);
@@ -140,6 +134,7 @@ public class SpawnManager : MonoBehaviour
         }
     }
 
+    int droneArea = 0; // area for next drone spawn
 
     void SpawnDrone()
     {
@@ -151,46 +146,36 @@ public class SpawnManager : MonoBehaviour
             // chose a random number of drones to spawn
             int nHowMany = Random.Range(1, maxDronesPerSpawn);
 
+            droneArea++; // increment drone spawn area
+
             for (int nDrone = 0; nDrone <nHowMany; nDrone++)
             {
-                int spawnZone = Random.Range(1, 4);
                 float randomX = 0f;
                 float randomZ = 0f;
 
-                spawnZone = 1; // for test
+                if (droneArea >2)
+                {
+                    // only 2 zones at present
+                    droneArea = 1;
+                }
 
-                switch (spawnZone)
+                switch (droneArea)
                 {
                     case 1:
-                        {
-                            // original spawn zone
-                            randomX = Random.Range(10f, 160f);
-                            randomZ = Random.Range(185f, 175f);
-                            break;
-                        }
+                    {
+                        // original spawn zone
+                        randomX = Random.Range(10f, 160f);
+                        randomZ = Random.Range(175f, 190f);
+                        break;
+                    }
 
                     case 2:
-                        {
-                            // original spawn zone
-                            randomX = Random.Range(-15f, 15f);
-                            randomZ = Random.Range(-10f, 80f);
-                            break;
-                        }
-
-                    case 3:
-                        {
-                            // original spawn zone
-                            randomX = Random.Range(-15f, 15f);
-                            randomZ = Random.Range(-10f, 80f);
-                            break;
-                        }
-                    case 4:
-                        {
-                            // original spawn zone
-                            randomX = Random.Range(-15f, 15f);
-                            randomZ = Random.Range(-10f, 80f);
-                            break;
-                        }
+                    {
+                        // second spawn zone - whole area on left side
+                        randomX = Random.Range(-40f, -160f);
+                        randomZ = Random.Range( 175f, 190f);
+                        break;
+                    }
                 }
 
                 Vector3 randomSpawnPos = new Vector3(randomX, 8f + Random.Range(0f,6f), 115f +Random.Range(1f,10f));
@@ -209,7 +194,7 @@ public class SpawnManager : MonoBehaviour
         }
     }
 
-
+    int powerUpSpawnZone = 0; // area for next powerup spawn
     void SpawnPowerPill()
     {
         // Spawn a Powerup
@@ -217,12 +202,36 @@ public class SpawnManager : MonoBehaviour
 
         if (pillToSpawn != null)
         {
+            powerUpSpawnZone++;
+
+            if (powerUpSpawnZone > 2)
+            {
+                powerUpSpawnZone = 1; // reset to original zone
+            }
+
+            float randomX = 0f;
+            float randomZ = 0f;
+
             for (int i = 0; i < 2; i++)
             {
-                // weird positioning as doesn't relate to building positioning?
-                float randomX = Random.Range(5f, 175f);
-                float randomZ = Random.Range(-175f, 175f);
-                Vector3 randomSpawnPos = new Vector3(randomX, 2, randomZ);
+                if (powerUpSpawnZone == 1)
+                {
+                    // original spawn zone playfield
+                    //randomX = Random.Range(  8f, 50f);
+                    //randomZ = Random.Range(-58f, 55f);
+
+                    // new bigger area by original player site
+                    randomX = Random.Range(10f, 160f);
+                    randomZ = Random.Range(0f, 175f);
+                }
+                if (powerUpSpawnZone == 2)
+                {
+                    // top left near smaller posh big building / lake
+                    randomX = Random.Range(-40f, -160f);
+                    randomZ = Random.Range( 15f, 200f);
+                }
+                
+                Vector3    randomSpawnPos = new Vector3(randomX, 2, randomZ);
                 GameObject newPowerup;
                 float timeSpawned = Time.realtimeSinceStartup;
 
@@ -232,7 +241,6 @@ public class SpawnManager : MonoBehaviour
         }
 
     }
-
 
     // Returns a currently unallocated patrol location
     UnityEngine.Vector3 getPatrolLocation()

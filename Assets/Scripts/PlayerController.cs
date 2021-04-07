@@ -19,6 +19,9 @@ public class PlayerController : MonoBehaviour
     private GameObject[] theCandles      = null;  // corner candles for night mode
     public  GameObject   theFlameThrower = null;  // flamethrower effect for gun
 
+    // spot light
+    private GameObject theHeadLamp = null; // player headlamp
+
     // buttons
     private Button smartBombButton;     // smart bomb indicator button
 
@@ -34,7 +37,7 @@ public class PlayerController : MonoBehaviour
     // gravity & speed
     private Vector3 realGravity;          // real world gravity vector (0f,-9.8f,0f)
     public  float   gravityModifier = 1f; // how much extra gravity force is applied
-    private float   speed = 15f;          // player movement speed
+    private float   speed = 22f;          // player movement speed
 
     // scoring
     private int pointsPerEnemyHitShot = 1;    // points per hit
@@ -42,8 +45,8 @@ public class PlayerController : MonoBehaviour
     private bool smartBombAvailable   = true; // smart bomb availability to player
 
     // game boundaries
-    private int boundaryZ = 210; // top & bottom (+-) boundaries on Z axis from centre (0,0,0)
-    private int boundaryX = 210;  // left & right (+-) boundaries on X axis from centre (0,0,0)
+    private int boundaryZ = 208; // top & bottom (+-) boundaries on Z axis from centre (0,0,0)
+    private int boundaryX = 208;  // left & right (+-) boundaries on X axis from centre (0,0,0)
 
     // night mode toggle
     bool bNightModeOn = false;
@@ -107,6 +110,19 @@ public class PlayerController : MonoBehaviour
         {
             // now we have pointer to them, turn off
             theFireFlies.SetActive(false);
+        }
+
+        // Find Headlamp and switch off
+        theHeadLamp = GameObject.FindGameObjectWithTag("Player Head Lamp");
+
+        if (theHeadLamp == null)
+        {
+            Debug.LogError("The Player doesnt have a headlamp object: " + gameObject.name);
+        }
+        else
+        {
+            // now we have pointer to them, turn off
+            theHeadLamp.SetActive(false);
         }
 
         theCandles = GameObject.FindGameObjectsWithTag("Candles");
@@ -246,6 +262,7 @@ public class PlayerController : MonoBehaviour
                 // New movement control code using AddForce()
                 if (horizontalInput != 0)
                 {
+                    // **********   USE THIS IF MY CHANGE DOESNT WORK ***************************************************
                     Rigidbody theRigidBody = gameObject.GetComponentInChildren<Rigidbody>();
 
                     // Get the Root Transform of the Player Object (i.e. the top level game object)
@@ -259,6 +276,30 @@ public class PlayerController : MonoBehaviour
 
                     transform.LookAt(theRigidBody.transform.position);
                     theRootTransform.Translate(Vector3.right * horizontalInput * Time.deltaTime * 3);
+                }
+                // **********   USE THIS IF MY CHANGE DOESNT WORK ***************************************************
+
+
+                // OMG my brainwave actually works, now if camera was actually a lot closer would work better
+                // but need it there for field of view!
+                if (horizontalInput != 0)
+                {
+                    Rigidbody theRigidBody = gameObject.GetComponentInChildren<Rigidbody>();
+
+                    // Get the Root Transform of the Player Object (i.e. the top level game object)
+                    Transform theRootTransform = transform.root;
+
+                    // get the Focus Point position
+                    Vector3 focusPoint = GameObject.FindGameObjectWithTag("Focus Point").GetComponent<Transform>().position;
+
+                    // get the Main Camera's offset (attached as a child of player) position from the focus point
+                    Vector3 cameraPoint = GameObject.FindGameObjectWithTag("Main Camera").GetComponentInChildren<Transform>().position;
+
+                    // now calculate the midpoint between the current position of Player and the camera
+                    Vector3 pivotPoint = transform.position + ((transform.position + focusPoint + cameraPoint) / 2);
+
+                    // now pivot around the new point!
+                    transform.RotateAround(pivotPoint, Vector3.up, 1f);
                 }
 
                 if (verticalInput != 0)
@@ -372,7 +413,15 @@ public class PlayerController : MonoBehaviour
                     theAnimator.SetFloat("f_Speed", 0f);
                 }
 
-                // shoot gun
+                // Jump in the air!
+
+                if (Input.GetKeyDown(KeyCode.J))
+                {
+                    // jump 10 units up
+                    
+                }
+
+                                // shoot gun
                 if (Input.GetKeyDown(KeyCode.Space))
                 {
                     // Shoot the gun / do particle effects & gun noise
@@ -451,6 +500,9 @@ public class PlayerController : MonoBehaviour
                 aCandle.GetComponentInChildren<ParticleSystem>().playOnAwake = true;
                 aCandle.GetComponentInChildren<ParticleSystem>().Play();
             }
+
+            // Turn on Headlamp
+            theHeadLamp.SetActive(true);
         }
         else
         {
@@ -470,6 +522,9 @@ public class PlayerController : MonoBehaviour
                 aCandle.GetComponentInChildren<ParticleSystem>().playOnAwake = false;
                 aCandle.GetComponentInChildren<ParticleSystem>().Stop();
             }
+
+            // Turn off Headlamp
+            theHeadLamp.SetActive(false);
         }
     }
 
@@ -557,9 +612,9 @@ public class PlayerController : MonoBehaviour
         if (Physics.Raycast(shootPoint, transform.forward, out pointHit, rangeForHits))
         {
             // ok... we hit something in range with the raycast
-            Debug.Log("Laser hit :  " + pointHit.transform.name);
-            Debug.Log("Position of Ray cast Hit (x,y,z) is: x=   " + pointHit.point.x + ", y=   " + pointHit.point.y + ", z=   " + pointHit.point.z + ".");
-            Debug.DrawRay(shootPoint, transform.TransformDirection(Vector3.forward) * pointHit.distance, Color.white, 2.0f);
+            //Debug.Log("Laser hit :  " + pointHit.transform.name);
+            //Debug.Log("Position of Ray cast Hit (x,y,z) is: x=   " + pointHit.point.x + ", y=   " + pointHit.point.y + ", z=   " + pointHit.point.z + ".");
+            //Debug.DrawRay(shootPoint, transform.TransformDirection(Vector3.forward) * pointHit.distance, Color.white, 2.0f);
 
             // check who collided with us - if player update game manager with score        
             if (pointHit.transform.CompareTag("Enemy Warrior"))
