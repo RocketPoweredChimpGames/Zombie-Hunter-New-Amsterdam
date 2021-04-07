@@ -1,0 +1,76 @@
+%YAML 1.1
+%TAG !u! tag:unity3d.com,2011:
+--- !u!78 &1
+TagManager:
+  serializedVersion: 2
+  tags:
+  - Shootable
+  - Missile
+  - Enemy Drone
+  - Enemy Warrior
+  - Focus Point
+  - Power Up
+  - EnemyWaveNum
+  - SmartBomb
+  - LivesPlayer
+  - EnemiesRemaining
+  - Ground
+  - EnemiesKilledTotal
+  - Player Health
+  - Panel
+  - SpawnManager
+  - ScorePlayer
+  - Instructions Panel
+  - Status Display
+  - Demo Player
+  - Demo Warrior
+  - Demo Drone
+  - Bomb Flames
+  - Main Lighting
+  - Fire Flies
+  - Candles
+  - Flame Thrower
+  - Flame Point
+  - Enemy Warrior Base Object
+  - Boundary Top
+  - Boundary Bottom
+  layers:
+  - Default
+  - TransparentFX
+  - Ignore Raycast
+  - 
+  - Water
+  - UI
+  - 
+  - 
+  - Lighting
+  - Ground
+  - Postprocessing
+  - 
+  - 
+  - 
+  - 
+  - 
+  - 
+  - 
+  - 
+  - 
+  - 
+  - 
+  - 
+  - 
+  - 
+  - 
+  - 
+  - 
+  - 
+  - 
+  - 
+  - 
+  m_SortingLayers:
+  - name: Fire
+    uniqueID: 3804908061
+    locked: 0
+  - name: Default
+    uniqueID: 0
+    locked: 0
