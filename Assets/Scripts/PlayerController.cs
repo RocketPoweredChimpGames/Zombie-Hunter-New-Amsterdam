@@ -9,15 +9,18 @@ public class PlayerController : MonoBehaviour
 {
     // player & game components
     private Rigidbody  playerRb;          // player rigidbody component
-    private GameObject focusPoint;        // camera focus point (child of player)
-    private GameObject theGameController; // invisible game object in scene
-    private GameplayController theGameControllerScript;
-    private Animator theAnimator;         // player animator component
+    private GameObject focusPoint;        // camera focus point (a child of player object)
+    private GameObject theGameController; // invisible game object in scene so gets updates
+    private Animator   theAnimator;       // player's animator component
+    private GameplayController theGameControllerScript; // game controller script
     
     // particle effects
-    private GameObject theFireFlies = null; // fire flies for night mode
-    private GameObject[] theCandles = null; // corner candles for night mode
-    public  GameObject theFlameThrower = null; // flamethrower effect for gun
+    private GameObject   theFireFlies    = null;  // fire flies for night mode
+    private GameObject[] theCandles      = null;  // corner candles for night mode
+    public  GameObject   theFlameThrower = null;  // flamethrower effect for gun
+
+    // spot light
+    private GameObject theHeadLamp = null; // player headlamp
 
     // buttons
     private Button smartBombButton;     // smart bomb indicator button
@@ -26,25 +29,26 @@ public class PlayerController : MonoBehaviour
     public  AudioClip laserFire;        // laser gunfire sound
     public  AudioClip walkMovement;     // walking sound
     public  AudioClip zombieHit;        // zombie hit
-
-    // sky boxes
+    
+    // sky box materials
     public Material daySkyBox;
     public Material nightSkyBox;
 
     // gravity & speed
-    private Vector3 realGravity;        // real world gravity vector (0f,-9.8f,0f)
-    public  float gravityModifier = 1f; // how much extra gravity force is applied
-    private float speed = 15f;          // player movement speed
+    private Vector3 realGravity;          // real world gravity vector (0f,-9.8f,0f)
+    public  float   gravityModifier = 1f; // how much extra gravity force is applied
+    private float   speed = 22f;          // player movement speed
 
     // scoring
-    private int pointsPerEnemyHitShot = 1; // points per hit
-    private int maxPointsPerEnemy = 10;    // gameplaycontroller "points per hit" multiplier - set to 10 as 10 hits per enemy to destroy
-    private bool smartBombAvailable = true;
+    private int pointsPerEnemyHitShot = 1;    // points per hit
+    private int maxPointsPerEnemy     = 10;   // gamePlayController "points per hit" multiplier - set to 10 as 5 hits per enemy to destroy
+    private bool smartBombAvailable   = true; // smart bomb availability to player
 
     // game boundaries
-    private int boundaryZ = 104; // top & bottom (+-) boundaries on Z axis from centre (0,0,0)
-    private int boundaryX = 33;  // left & right (+-) boundaries on X axis from centre (0,0,0)
+    private int boundaryZ = 208; // top & bottom (+-) boundaries on Z axis from centre (0,0,0)
+    private int boundaryX = 208;  // left & right (+-) boundaries on X axis from centre (0,0,0)
 
+    // night mode toggle
     bool bNightModeOn = false;
 
     // Start is called before the first frame update
@@ -54,11 +58,16 @@ public class PlayerController : MonoBehaviour
         playerRb = GetComponent<Rigidbody>();
         focusPoint = GameObject.Find("Focus Point");
         
+        if (focusPoint == null)
+        {
+            Debug.Log("Couldn't find the Players Focus Point object, check enabled in gui and correctly tagged/named");
+        }
+
         // Set gravity up in Physics system
         realGravity = new UnityEngine.Vector3(0f, -9.8f, 0f); // downwards force 9.8m/s2
         Physics.gravity = realGravity * gravityModifier;
 
-        // set up laser sound
+        // set up laser (actually a flamethrower now) sound
         GetComponent<AudioSource>().playOnAwake = false;
         GetComponent<AudioSource>().clip = laserFire;
         
@@ -84,6 +93,7 @@ public class PlayerController : MonoBehaviour
 
         // get the animator
         theAnimator = this.GetComponent<Animator>();
+        //theAnimator = this.GetComponentInChildren<Animator>();
 
         if (theAnimator == null)
         {
@@ -100,6 +110,19 @@ public class PlayerController : MonoBehaviour
         {
             // now we have pointer to them, turn off
             theFireFlies.SetActive(false);
+        }
+
+        // Find Headlamp and switch off
+        theHeadLamp = GameObject.FindGameObjectWithTag("Player Head Lamp");
+
+        if (theHeadLamp == null)
+        {
+            Debug.LogError("The Player doesnt have a headlamp object: " + gameObject.name);
+        }
+        else
+        {
+            // now we have pointer to them, turn off
+            theHeadLamp.SetActive(false);
         }
 
         theCandles = GameObject.FindGameObjectsWithTag("Candles");
@@ -180,7 +203,6 @@ public class PlayerController : MonoBehaviour
             // toggle pause game
             if (Input.GetKeyDown(KeyCode.P))
             {
-
                 if (theGameControllerScript.IsGamePaused() == true)
                 {
                     // resume game
@@ -195,56 +217,145 @@ public class PlayerController : MonoBehaviour
 
             if (!theGameControllerScript.IsGamePaused())
             {
-                // process inputs as not paused
+                // process inputs as not currently paused
+
                 // get player cursor key inputs
-                float horizontalInput = Input.GetAxis("Horizontal"); // -1 to 1 is input from key press
-                float verticalInput = Input.GetAxis("Vertical");     // -1 to 1 is input from key press
+                float horizontalInput = Input.GetAxis("Horizontal"); // -1 to 1 input from key press (left/right X Axis)
+                float verticalInput   = Input.GetAxis("Vertical");   // -1 to 1 input from key press (down/up Z Axis)
+                float speed           = 12f;
 
-                // now need to check bounds for player movement
-                if (horizontalInput != 0 || verticalInput != 0)
-                {
-                    // keep player within playfield bounds
-                    if (transform.position.z > boundaryZ)
-                    {
-                        Vector3 reposTransform = new Vector3(transform.position.x, 0f, boundaryZ - 0.5f);
-                        transform.position = reposTransform;
-                    }
-                    else if (transform.position.z < -boundaryZ)
-                    {
-                        Vector3 reposTransform = new Vector3(transform.position.x, 0f, -(boundaryZ - 0.5f));
-                        transform.position = reposTransform;
-                    }
-                    else if (transform.position.x > boundaryX)
-                    {
-                        Vector3 reposTransform = new Vector3(boundaryX - 0.5f, 0f, transform.position.z);
-                        transform.position = reposTransform;
-                    }
-                    else if (transform.position.x < -boundaryX)
-                    {
-                        Vector3 reposTransform = new Vector3(-(boundaryX - 0.5f), 0f, transform.position.z);
-                        transform.position = reposTransform;
-                    }
-
+                /*ORIGINAL CODE FOR PLAYER MOVEMENT IF ALL ELSE FAILS - DO NOT CHANGE STUFF INSIDE HERE!
                     // Move the player depending on which key is pressed
                     if (Input.GetKey(KeyCode.UpArrow) || Input.GetKey(KeyCode.DownArrow))
                     {
-                        // Vertical Movement (up/down)
+                        // Vertical Movement (up) on Z-Axis
                         transform.Translate(Vector3.forward * verticalInput * Time.deltaTime * speed);
                     }
                     else if (Input.GetKey(KeyCode.LeftArrow) || Input.GetKey(KeyCode.RightArrow))
                     {
-                        // Horizontal movement (left/right)
-                        transform.Translate(Vector3.right * horizontalInput * Time.deltaTime * speed);
+                        // go a bit slower left/right
+                        transform.Translate(Vector3.right * horizontalInput * Time.deltaTime * (speed-6f));
                     }
+                    
+                    transform.Translate(Vector3.right * horizontalInput * Time.deltaTime * speed);
+                    END OF ORIGINAL CODE 
+                
+                    // THIS CODE WORKS FOR ENEMY ROTATION
+                    
+                    // turn enemy rigidbody in direction of player and LookAt the players direction
+                    theEnemyRb.velocity = direction;
+                    transform.LookAt(thePlayer.transform);
+                    transform.rotation = Quaternion.LookRotation(direction);
+
+                    // now move the enemy - MUST use AddForce for characters with rigibodies!
+                    gameObject.GetComponentInChildren<Rigidbody>().AddForce(direction * 90, ForceMode.Impulse);
+                    
                 }
 
-                // rotate player
-                transform.Rotate(Vector3.up, horizontalInput * Time.deltaTime * 100);
+                /// original dont change
+                // rotate player (sort of)
+                //transform.Rotate(Vector3.up, horizontalInput * Time.deltaTime * 50);
+                // end of original dont change
+
+                */
+
+                // New movement control code using AddForce()
+                if (horizontalInput != 0)
+                {
+                    // **********   USE THIS IF MY CHANGE DOESNT WORK ***************************************************
+                    Rigidbody theRigidBody = gameObject.GetComponentInChildren<Rigidbody>();
+
+                    // Get the Root Transform of the Player Object (i.e. the top level game object)
+                    Transform theRootTransform = transform.root;
+
+                    // now create a new vector3 to lookAt ----   example one
+                    Vector3 m_EulerAngleVelocity = new Vector3(0f, 80f, 0f);
+
+                    Quaternion deltaRotation = Quaternion.Euler(m_EulerAngleVelocity * Time.deltaTime * horizontalInput);
+                    theRigidBody.MoveRotation(theRigidBody.rotation * deltaRotation);
+
+                    transform.LookAt(theRigidBody.transform.position);
+                    theRootTransform.Translate(Vector3.right * horizontalInput * Time.deltaTime * 3);
+                }
+                // **********   USE THIS IF MY CHANGE DOESNT WORK ***************************************************
+
+
+                // OMG my brainwave actually works, now if camera was actually a lot closer would work better
+                // but need it there for field of view!
+                if (horizontalInput != 0)
+                {
+                    Rigidbody theRigidBody = gameObject.GetComponentInChildren<Rigidbody>();
+
+                    // Get the Root Transform of the Player Object (i.e. the top level game object)
+                    Transform theRootTransform = transform.root;
+
+                    // get the Focus Point position
+                    Vector3 focusPoint = GameObject.FindGameObjectWithTag("Focus Point").GetComponent<Transform>().position;
+
+                    // get the Main Camera's offset (attached as a child of player) position from the focus point
+                    Vector3 cameraPoint = GameObject.FindGameObjectWithTag("Main Camera").GetComponentInChildren<Transform>().position;
+
+                    // now calculate the midpoint between the current position of Player and the camera
+                    Vector3 pivotPoint = transform.position + ((transform.position + focusPoint + cameraPoint) / 2);
+
+                    // now pivot around the new point!
+                    transform.RotateAround(pivotPoint, Vector3.up, 1f);
+                }
+
+                if (verticalInput != 0)
+                {
+                    // Get the root transform of the Player Object (i.e. our container object's transform)
+                    Transform theRootTransform = transform.root;
+
+                    // now create a new vector3 to lookAt based on user input for z-axis movement
+                    Vector3 m_EulerAngleVelocity = new Vector3(0f,
+                                                               0f,
+                                                               theRootTransform.position.z);
+                    //gameObject.GetComponentInChildren<Rigidbody>().AddForce(theNewVector * 100, ForceMode.Impulse);
+                    theRootTransform.Translate(Vector3.forward * verticalInput * Time.deltaTime * speed);
+
+                    // look at the new direction
+                    //transform.LookAt(theNewVector);
+                    //transform.root.rotation = Quaternion.LookRotation(theNewVector);
+
+                    // now move the player - MUST use AddForce for characters with rigibodies!
+                    //gameObject.GetComponentInChildren<Rigidbody>().AddForce(theNewVector, ForceMode.Impulse);
+                    //gameObject.GetComponent<Rigidbody>().AddForce(theNewVector *100f, ForceMode.Impulse);
+                }
+                else
+                {
+                    transform.root.gameObject.GetComponentInChildren<Rigidbody>().velocity = new Vector3(0f, 0f, 0f);
+                }
+
+                // check bounds for player movement
+                if (horizontalInput != 0 || verticalInput != 0)
+                {
+                    // keep player within playfield
+                    if (transform.position.z > boundaryZ)
+                    {
+                        Vector3 reposTransform = new Vector3(transform.position.x, 0f, boundaryZ - 0.75f);
+                        transform.position = reposTransform;
+                    }
+                    else if (transform.position.z < -boundaryZ)
+                    {
+                        Vector3 reposTransform = new Vector3(transform.position.x, 0f, -(boundaryZ - 0.75f));
+                        transform.position = reposTransform;
+                    }
+                    else if (transform.position.x > boundaryX)
+                    {
+                        Vector3 reposTransform = new Vector3(boundaryX - 0.75f, 0f, transform.position.z);
+                        transform.position = reposTransform;
+                    }
+                    else if (transform.position.x < -boundaryX)
+                    {
+                        Vector3 reposTransform = new Vector3(-(boundaryX - 0.75f), 0f, transform.position.z);
+                        transform.position = reposTransform;
+                    }
+                }
 
                 // change animation state to correct one dependent on movement direction
                 // can ONLY be one state at a time as no move forward/left, back/left, forward/right, backward/right animations
                 // in the package I found, also has some delays in starting due to transitions baked in, grrr!
-
                 if (horizontalInput != 0)
                 {
                     if (horizontalInput < 0)
@@ -302,7 +413,15 @@ public class PlayerController : MonoBehaviour
                     theAnimator.SetFloat("f_Speed", 0f);
                 }
 
-                // shoot gun
+                // Jump in the air!
+
+                if (Input.GetKeyDown(KeyCode.J))
+                {
+                    // jump 10 units up
+                    
+                }
+
+                                // shoot gun
                 if (Input.GetKeyDown(KeyCode.Space))
                 {
                     // Shoot the gun / do particle effects & gun noise
@@ -322,28 +441,28 @@ public class PlayerController : MonoBehaviour
                     ToggleNightMode();
                 }
             }
+        }
 
-            // ok game could be over - so allow restart
-            if (theGameControllerScript.IsGameOver())
+        // ok game could be over - so allow restart
+        if (theGameControllerScript.IsGameOver())
+        {
+            // get restart
+            theGameControllerScript.PostStatusMessage("Game Over - Press 'S' to Restart!");
+        
+            if (Input.GetKeyDown(KeyCode.S))
             {
-                // get restart
-                theGameControllerScript.PostStatusMessage("Game Over - Press 'S' to Restart!");
-
-                if (Input.GetKeyDown(KeyCode.S))
-                {
-                    // restart game - keeping high scores etc this time
-                    theGameControllerScript.RestartGame();
-                }
+                // restart game - keeping high scores etc this time
+                theGameControllerScript.RestartGame();
             }
         }
-        
+
         if (theGameControllerScript.IsGameOver())
         {
             // game over, wait for player to restart game
 
             if (Input.GetKeyDown(KeyCode.S))
             {
-                // Restart game
+               // Restart game
                 theGameControllerScript.RestartGame();
             }
         }
@@ -358,8 +477,7 @@ public class PlayerController : MonoBehaviour
         if (!bNightModeOn)
         {
             // set to night time mode!
-
-            // Set skybox to Night Sky
+            // set skybox to Night Sky
             UnityEngine.RenderSettings.skybox = nightSkyBox;
 
             if (theLight != null)
@@ -382,6 +500,9 @@ public class PlayerController : MonoBehaviour
                 aCandle.GetComponentInChildren<ParticleSystem>().playOnAwake = true;
                 aCandle.GetComponentInChildren<ParticleSystem>().Play();
             }
+
+            // Turn on Headlamp
+            theHeadLamp.SetActive(true);
         }
         else
         {
@@ -401,6 +522,9 @@ public class PlayerController : MonoBehaviour
                 aCandle.GetComponentInChildren<ParticleSystem>().playOnAwake = false;
                 aCandle.GetComponentInChildren<ParticleSystem>().Stop();
             }
+
+            // Turn off Headlamp
+            theHeadLamp.SetActive(false);
         }
     }
 
@@ -410,6 +534,7 @@ public class PlayerController : MonoBehaviour
         // if we have a SmartBomb we can destroy all enemies at once
         if (smartBombAvailable)
         {
+            smartBombAvailable = false; // always first line of code in here!
             enemyAttacker = null;
 
             // find and destroy all enemies!
@@ -426,25 +551,25 @@ public class PlayerController : MonoBehaviour
             // destroy them one by one
             foreach (GameObject enemy in enemies)
             {
-                // destroy them all, allow a 3 second delay for sound playing
+                // destroy them all, calling dyingstate() allows a short delay for sound
+                // and animations to finish playing before destroying them
                 if (enemy != null)
                 {
                     enemy.GetComponentInChildren<EnemyController>().DyingState();
 
                     if (!theGameControllerScript.IsGameOver())
                     {
-                        // only give points if not game over
-                        theGameControllerScript.UpdatePlayerScore(pointsPerEnemyHitShot * maxPointsPerEnemy); // give points for each enemy destroyed
+                        // gives max points to the player (for each enemy) for killing them, if game isn't over, should really be 
+                        // max points minus hit points per object but hey run out of time to do stuff!
+                        theGameControllerScript.UpdatePlayerScore(pointsPerEnemyHitShot * maxPointsPerEnemy); // give max points for each enemy destroyed
                     }
                 }
             }
-
-            smartBombAvailable = false;
         }
     }
 
     public float damageDone   = 20f;
-    public float rangeForHits = 4.5f;
+    public float rangeForHits = 2f;
 
     // re enable smart bomb button
     public void SmartBombReset()
@@ -454,6 +579,7 @@ public class PlayerController : MonoBehaviour
             smartBombButton.interactable = true;
             smartBombButton.GetComponentInChildren<Text>().text = "SMART BOMB";
         }
+        // make bomb available again
         smartBombAvailable = true;
     }
 
@@ -461,40 +587,42 @@ public class PlayerController : MonoBehaviour
     {
         // Does a raycast from the players transform in a forward facing direction
         // the 'hit' variable returns the position of the hit on an object collider which we check to see if an enemy character
-        // or not, if it is, send a message to player object to do damage, and explode/die,
-        // if not simply do a particle effect in transforms forward direction...
+        // or not, if it is, send a message to enemy object to do damage, and cause it to explode/die,
+        // Regardless, does a flame particle effect in transforms forward direction.
 
+        // set to repeat shot animation, as more likely to be firing repeatedly and single shot anim is too slow to activate!
         theAnimator.SetBool("b_RepeatShot", true);
 
         AudioSource source = GetComponent<AudioSource>();
 
-        // play flamethrower sound straight away - dont wait for completion just play, sounds ok anyway!
+        // play flamethrower sound straight away - dont wait for completion just play, sounds ok anyway if done repeatedly!
         source.enabled = true;
         source.clip = laserFire;
         source.Play();
 
         RaycastHit pointHit;
 
-        // change to an invisible box positioned exactly where animation of gun would reach on box collider at some point
-        Vector3 shootPoint = new Vector3(transform.position.x, 1.0f, transform.position.z); // shoot from 1f above ground
+        // Shoot the ray to see if we hit something!
+        // - the shoot point for flames (not this shoot point!) is an invisible box positioned exactly where animation of gun reaches, on the player object
+        Vector3 shootPoint = new Vector3(transform.position.x, 1.8f, transform.position.z); // shoot from 1f above ground
 
         // shoot the flames
         StartCoroutine(ShootFlamethrower());
 
         if (Physics.Raycast(shootPoint, transform.forward, out pointHit, rangeForHits))
         {
-            // hit something in range with the raycast
-            Debug.Log("Laser hit :  " + pointHit.transform.name);
-            Debug.Log("Position of Ray cast Hit (x,y,z) is: x=   " + pointHit.point.x + ", y=   " + pointHit.point.y + ", z=   " + pointHit.point.z + ".");
-            Debug.DrawRay(shootPoint, transform.TransformDirection(Vector3.forward) * pointHit.distance, Color.white, 2.0f);
+            // ok... we hit something in range with the raycast
+            //Debug.Log("Laser hit :  " + pointHit.transform.name);
+            //Debug.Log("Position of Ray cast Hit (x,y,z) is: x=   " + pointHit.point.x + ", y=   " + pointHit.point.y + ", z=   " + pointHit.point.z + ".");
+            //Debug.DrawRay(shootPoint, transform.TransformDirection(Vector3.forward) * pointHit.distance, Color.white, 2.0f);
 
             // check who collided with us - if player update game manager with score        
             if (pointHit.transform.CompareTag("Enemy Warrior"))
             {
-                // update score in game manager
+                // hit warrior (zombie) - update score in game manager
                 theGameControllerScript.UpdatePlayerScore(pointsPerEnemyHitShot); // one point per hit
 
-                // now increment hit count for the object we have hit - but only if not dying
+                // increment hit count for the object we have hit - but only if not dying
                 EnemyController theEnemyController = pointHit.rigidbody.gameObject.GetComponent<EnemyController>();
 
                 if (theEnemyController)
@@ -516,13 +644,17 @@ public class PlayerController : MonoBehaviour
 
     IEnumerator TurnOffAttack()
     {
-        yield return new WaitForSeconds(0.5f); // give it time to do it
+        yield return new WaitForSeconds(0.5f); // give it time to do it - DO NOT CHANGE THIS VALUE NOW, it works!
         theAnimator.SetBool("b_RepeatShot", false); // change to gun idle animation
     }
 
     bool playerUnderAttack = false;
     GameObject enemyAttacker = null;
 
+
+    // may need to change distance between objects check elsewhere, to ensure colliders are activated
+    // or change size of collider on enemy so player is hit at end point of arms when animated so looks like arms 
+    // when hitting player are causing damage points
     private void OnCollisionEnter(Collision collision)
     {
         // check if player has collided with something
@@ -556,7 +688,7 @@ public class PlayerController : MonoBehaviour
 
     void AddHealthDamage()
     {
-        Debug.Log("Adding damage");
+        //Debug.Log("Adding damage");
         if (enemyAttacker != null)
         {
             theGameControllerScript.UpdatePlayerHealth(GameObject.FindGameObjectWithTag("Enemy Warrior").GetComponent<EnemyController>().hitDamage);

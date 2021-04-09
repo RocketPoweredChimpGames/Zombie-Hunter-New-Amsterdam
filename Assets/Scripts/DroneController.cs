@@ -5,7 +5,7 @@ using UnityEngine;
 
 public class DroneController : MonoBehaviour
 {
-    public GameObject thePlayer; // our player
+    public  GameObject thePlayer; // our player
     private GameObject theGameController;  // game play controller
     private PlayerController thePlayerControllerScript;
     private GameplayController theGameControllerScript;
@@ -18,16 +18,25 @@ public class DroneController : MonoBehaviour
 
     public GameObject missileToLaunch; // missile object to launch
 
+    Vector3 droneStartVectorAtHeight;
+    Vector3 mustAvoidBuildingsVectorHeight;
+
     // Start is called before the first frame update
     void Start()
     {
-        thePlayer = GameObject.FindGameObjectWithTag("Player");         // player
+        thePlayer         = GameObject.FindGameObjectWithTag("Player");         // player
         theGameController = GameObject.FindGameObjectWithTag("GameController"); // game controller 
 
         // get class scripts
         thePlayerControllerScript = thePlayer.GetComponent<PlayerController>();           // find the player controller
-        theGameControllerScript = theGameController.GetComponent<GameplayController>(); // find the gameplay controller
-        missileLaunched = false;
+        theGameControllerScript   = theGameController.GetComponent<GameplayController>(); // find the gameplay controller
+        missileLaunched           = false;
+
+        // start position and height of drone
+        droneStartVectorAtHeight  = gameObject.transform.position; // it's starting position and height
+
+        // drone must be above this height by the time it reaches here to avoid buildings
+        mustAvoidBuildingsVectorHeight = new Vector3(droneStartVectorAtHeight.x, 33f, 33f);
     }
 
     // Update is called once per frame
@@ -43,8 +52,14 @@ public class DroneController : MonoBehaviour
         else
         {
             // move drone on flight path, needs to bomb player if within a certain range of flight path
-            Vector3 droneFlightPath = new Vector3(currentPos.x, currentPos.y, -115f);
-            Vector3 direction = droneFlightPath - transform.position;
+            // and also increase in height a bit as it goes along to avoid buildings
+
+            //Vector3 droneFlightPath = new Vector3(currentPos.x, currentPos.y, -115f);
+
+            Vector3 droneFlightPath = new Vector3(currentPos.x, 
+                                                  currentPos.y + (mustAvoidBuildingsVectorHeight.y - currentPos.y), -115f);
+
+            Vector3 direction       = droneFlightPath - transform.position;
             transform.Translate(direction * Time.deltaTime * droneSpeed);
 
             // drop a bomb (falls under gravity)

@@ -26,35 +26,42 @@ public class PowerUp
 
 public class GameplayController : MonoBehaviour
 {
-    public GameObject[] patrolPositions;  // patrol objects in scene which our warriors patrol to  - change to a list??
-    public GameObject[] theObstacles;     // dynamic array of obstacles
-    public GameObject   thePlayer;        // our player
+    // Public Variables
+    public GameObject[] patrolPositions;        // patrol objects in scene which our warriors patrol to  - change to a list sometime?
+    public GameObject[] theObstacles;           // dynamic array of obstacles (not used now) - delete later
+    public GameObject   thePlayer;              // our player
+    public Transform    theStartPosition;       // for repositioning player on restart (if i get it working)
 
-    public GameObject   theScoringPanel;       // displays player scores, player start/re-start game
-    public GameObject   theInstructionPanel;   // displayed prior to game start with instructions & animations of alien and player
-    public GameObject   theCreditsReplayPanel; // credits and replay panel at end of game
+    public GameObject   theScoringPanel;        // displays player scores, player start/re-start game
+    public GameObject   theInstructionPanel;    // displayed prior to game start with instructions & animations of alien and player
+    public GameObject   theCreditsReplayPanel;  // credits and replay panel at end of game
 
     // all noises are setup by dragging into relevant fields in the gui editor
     public  AudioClip   countdownNoise;         // played when less than 60% (or whatever changed to) health
     public  AudioClip   criticalCountdownNoise; // played when 10% or under health 
     public  AudioClip   lifeLostNoise;          // life lost noise
-    private AudioSource theAudioSource;
+    
+    // add later
+    //public AudioClip  cheeringNoiseHighScore; // cheering when highscore beaten
+
+    private AudioSource theAudioSource;         // audio source component
 
     // all these text fields are associated by dragging field entries into gameplay controller entries in gui editor
-    public TMP_Text ScorePlayer;        // players score
-    public TMP_Text LivesPlayer;        // players lives
-    public TMP_Text PlayerHealth;       // players health
-    public TMP_Text StatusDisplay;      // status display messages box
-    public TMP_Text EnemyWaveNum;       // enemy wave number
-    public TMP_Text EnemiesRemaining;   // remaining enemies this wave
-    public TMP_Text EnemiesKilledTotal; // total enemies killed in game
+    public TMP_Text     ScorePlayer;            // players score
+    public TMP_Text     LivesPlayer;            // players lives
+    public TMP_Text     PlayerHealth;           // players health
+    public TMP_Text     StatusDisplay;          // status display messages box
+    public TMP_Text     EnemyWaveNum;           // enemy wave number
+    public TMP_Text     EnemiesRemaining;       // remaining enemies this wave
+    public TMP_Text     EnemiesKilledTotal;     // total enemies killed in game
+    public TMP_Text     HighScore;              // player high score
 
-    private List<PowerUp> currentPowerups; // current powerups on screen for grand finale destruction
-    private SpawnManager theSpawnManager;  // the spawn manager
+    private List<PowerUp> currentPowerups;      // current powerups on screen for grand finale destruction sequence
+    private SpawnManager theSpawnManager;       // the spawn manager
 
-    private UnityEngine.Vector3[] originalStartPosition; // position where our 'Warrior' objects were originally spawned
+    private UnityEngine.Vector3[] originalStartPosition; // position where our 'Warrior' objects were originally spawned (not used yet)
     
-    // game control
+    // game control 
     public  bool bGameStarted     = false;  // has game started
     private bool bGameReStarted   = false;  // has game been restarted
     public  bool bGamePaused      = false;  // is game on pause
@@ -62,20 +69,21 @@ public class GameplayController : MonoBehaviour
     public  bool playingCountdown = false;  // are we playing countdown noise
 
     // player variables
-    private int maxPowerUps  = 100;         // maximum powerups on screen at a time
+    private int maxPowerUps  = 200;         // maximum powerups on screen at a time
     private int playerLives  = 3;           // number of player lives
     public  int playerHealth = 100;         // initial full health
     private int playerScore  = 0;           // initial player score
-    
+    private int highScore    = 0;           // put in a file later to keep
     private int[] highScores;               // top ten high scores - probably read them from a serialised JSON file later on
+    
 
     // game stats stuff
     public  int enemyWaveNumber       = 0;  // wave number
     private int totalEnemiesKilled    = 0;  // total of all kills
     private int enemiesKilledThisWave = 0;  // how many killed on current wave
-    private int maxEnemiesPerWave     = 30; // maximum per wave before starting next wave
+    private int maxEnemiesPerWave     = 50; // maximum per wave before starting next wave
 
-    // sky box to use
+    // sky box to use at start
     public Material theDaySkybox; // daytime sky box
 
     public bool HasGameStarted()
@@ -96,18 +104,22 @@ public class GameplayController : MonoBehaviour
         {
             // setting bGameStarted will start game spawning on next update() in SpawnController, and enable Player controls
             // in player controller
-            bGameStarted = bStart; // start game
-            enemyWaveNumber = 1; // first wave
+            bGameOver       = false;
+            bGameStarted    = bStart; // start game
+            enemyWaveNumber = 1;      // first wave
+
+            if (highScore == 0)
+            {
+                string hiScore = "0";
+
+                HighScore.SetText(hiScore.ToString());
+            }
 
             PauseGame(false); // turn off pause
 
             // update player display
             StartWaveNumber(enemyWaveNumber);
             EnemiesKilledTotal.SetText(totalEnemiesKilled.ToString());
-
-            // FOR TESTING OF END GAME RESTART
-            //playerHealth = 6;
-            //playerLives = 1;
 
             // start routine to decay health periodically
             StartHealthCountdown();
@@ -153,10 +165,7 @@ public class GameplayController : MonoBehaviour
         // display restart option on screen, and tell player controller to accept input of "Y" to start again?
         bGameOver = true;
 
-        string blank = "Game Over! Press 'S' to Restart!";
-        StatusDisplay.text = blank.ToString();
-
-        GameObject[] theWarriors = GameObject.FindGameObjectsWithTag("Enemy Warrior");
+        GameObject[] theWarriors = GameObject.FindGameObjectsWithTag("Enemy Warrior Base Object");
         GameObject[] thePowerups = GameObject.FindGameObjectsWithTag("Power Up");
         GameObject[] theDrones   = GameObject.FindGameObjectsWithTag("Enemy Drone");
 
@@ -181,8 +190,13 @@ public class GameplayController : MonoBehaviour
             Destroy(drone);
         }
 
+        string blank = " ";
+
+        blank = "Game Over! Press 'S' to Restart!";
+        StatusDisplay.text = blank.ToString();
+        
         // stop animations and music
-        Time.timeScale = 0f;
+        Time.timeScale      = 0f;
         AudioListener.pause = true;
     }
 
@@ -270,6 +284,7 @@ public class GameplayController : MonoBehaviour
         EnemiesKilledTotal.SetText(totalEnemiesKilled.ToString());
         LivesPlayer.SetText(playerLives.ToString());
         PlayerHealth.SetText(playerHealth.ToString());
+        ScorePlayer.SetText(playerScore.ToString());
 
         // initialise status message box again
         string blank = " ";
@@ -281,7 +296,6 @@ public class GameplayController : MonoBehaviour
 
         // re-enable smart bomb button
         thePlayer.GetComponent<PlayerController>().SmartBombReset(); // reset smart bomb availability
-        
         bGameStarted = true; // causes start of spawning/re-enables player input/starts health countdown
     }
 
@@ -333,6 +347,7 @@ public class GameplayController : MonoBehaviour
         // do any setup here, initalise scores, display instructions, wait for start, then tell Spawnmanager to start   
         // when user requests
         //StartGame(true); // will cause SpawnManager to start spawning
+
         SetupHighScores(); // will read from a file at some point
 
         // get audio source component
@@ -340,6 +355,9 @@ public class GameplayController : MonoBehaviour
 
         // initialise an empty Powerup list - for final destroy in grand finale (if I implement one)
         currentPowerups = new List<PowerUp>();
+
+        // get player start position
+        theStartPosition = thePlayer.transform;
     }
 
     public void StartHealthCountdown()
@@ -355,8 +373,6 @@ public class GameplayController : MonoBehaviour
         if (!bGameStarted)
         {
             // Start the game when user is ready
-            PostStatusMessage("Press 'S' to Start Game!  Game Controller Start");
-
             if (Input.GetKeyDown(KeyCode.S))
             {
                 // Start game
@@ -370,12 +386,18 @@ public class GameplayController : MonoBehaviour
         // update the score and display on the text panel
         playerScore += scoreChange;
 
-        if (playerScore <0)
+        if (playerScore == 0)
         {
             playerScore = 0;
         }
 
         ScorePlayer.text = playerScore.ToString();
+
+        if (playerScore > highScore)
+        {
+            string high = playerScore.ToString();
+            HighScore.SetText(high.ToString());
+        }
     }
 
 
@@ -508,7 +530,7 @@ public class GameplayController : MonoBehaviour
 
     private void UpdatePlayerLives(int livesLost)
     {
-        // decrease player lives, reset health to full if some left, turn of countdown noise
+        // decrease player lives, reset health to full if some left, turn off countdown noise
         playerLives += livesLost;
 
         string blank = "You Lost a Life!";
@@ -527,6 +549,8 @@ public class GameplayController : MonoBehaviour
         {
             // reset for new life
             playerHealth = 100; // reset health
+            PlayerHealth.SetText(playerHealth.ToString());
+
             thePlayer.GetComponent<PlayerController>().SmartBombReset(); // reset smart bomb availability
 
             // reset status display

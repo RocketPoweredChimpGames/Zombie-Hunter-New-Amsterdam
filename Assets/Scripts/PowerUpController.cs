@@ -11,15 +11,17 @@ public class PowerUpController : MonoBehaviour
     private GameObject theGameController;               // GameplayController object in scene
     private GameplayController theGameControllerScript; // the script attached to this object
 
-    private float lastUpdateTime;     // time this was last updated
-    private float startTime;          // time this first appeared on screen
-    private float decayPeriod = 10.0f; // decays a bit every 10 secs
-    private int decayCount = 0;       // number of times energy pill has decayed (deleted on maxDecay)
-    private int powerUpPoints = 5;    // every power up has 5 points initially
-    private int powerUpHealthPoints = 3;
+    private float lastUpdateTime;            // time this was last updated
+    private float startTime;                 // time this first appeared on screen
+    private float decayPeriod       = 10.0f; // decays a bit every 10 secs
+    private int decayCount          = 0;     // number of times energy pill has decayed (deleted on maxDecay)
+    private int powerUpPoints       = 5;     // score value - every power up has 5 points
+    private int powerUpHealthPoints = 3;     // health points for collecting this powerup
 
-    public TMP_Text statusDisplayField;
-    public AudioClip powerBoing;
+    private bool hitByPlayer        = false;
+
+    public TMP_Text  statusDisplayField;
+    public AudioClip powerBoing; // audio clip to play
     
     // Start is called before the first frame update
     void Start()
@@ -36,11 +38,11 @@ public class PowerUpController : MonoBehaviour
         }
 
         lastUpdateTime = Time.realtimeSinceStartup; // start time we will increment later in update()
-        startTime = lastUpdateTime;
+        startTime      = lastUpdateTime;
 
-        // set audio clip
+        // setup audio clip
         GetComponent<AudioSource>().playOnAwake = false;
-        GetComponent<AudioSource>().clip = powerBoing;
+        GetComponent<AudioSource>().clip        = powerBoing;
 
         string blank = "";
 
@@ -53,15 +55,18 @@ public class PowerUpController : MonoBehaviour
     // Update is called once per frame
     void Update()
     {
-        // only cycle powerup states if not paused
-        if (!theGameControllerScript.IsGamePaused() || !theGameControllerScript.IsGameOver())
+        // only cycle powerup states if not paused or game over
+        if (!theGameControllerScript.IsGamePaused())
         {
-            // do it periodically
-            if (timeHasPassed())
+            if (!theGameControllerScript.IsGameOver())
             {
-                // change colour of powerup, and reduce points for collecting
-                decayCount++;
-                CycleToExtinction();
+                // do it periodically
+                if (timeHasPassed())
+                {
+                    // change colour of powerup, and reduce points for collecting
+                    decayCount++;
+                    CycleToExtinction();
+                }
             }
         }
     }
@@ -115,36 +120,9 @@ public class PowerUpController : MonoBehaviour
         if (decayCount == 5) decayCount = 0;
     }
 
-    /*  private float lastUpdateTime;     // time this was last updated
-        private float startTime;          // time this first appeared on screen
-        private float decayPeriod = 5.0f; // decays a bit every 5 secs
-        private int decayCount = 0;       // number of times energy pill has decayed (deleted on maxDecay)
-        private int maxDecay = 5;         // maximum number of time periods*/
-
     bool timeHasPassed()
     {
-        /*if (Time.realtimeSinceStartup >= lastUpdateTime + decayPeriod)
-        {
-            PowerUp matching = theGameControllerScript.FindPowerUp(gameObject);
-
-            // if found it, check time from this object
-            if (matching != null)
-            {
-                // found the object
-                if (Time.realtimeSinceStartup >= matching.timeOfCreation)
-                {
-                    return true;
-                }
-            }
-            lastUpdateTime = Time.realtimeSinceStartup;
-            return true;
-        }
-        else
-        {
-
-            return false;
-        }*/
-
+        // flag that a complete time period has passed for decaying powerup
         if (Time.realtimeSinceStartup >= lastUpdateTime + decayPeriod)
         {
             lastUpdateTime = Time.realtimeSinceStartup;
@@ -153,12 +131,19 @@ public class PowerUpController : MonoBehaviour
         else return false;
     }
 
-    
     private void OnCollisionEnter(Collision collision)
     {
-        // check who collided with us - if player update game manager with score        
-        if (collision.gameObject.CompareTag("Player"))
+        // check who collided with us - if it's the player tell game manager        
+        // to update score
+        
+        if (collision.gameObject.CompareTag("Player") && !hitByPlayer)
         {
+            // prevent random re-collisions giving more points
+            hitByPlayer = true;
+
+            // get collider and turn off
+            gameObject.GetComponent<Collider>().enabled = false;
+
             GetComponent<AudioSource>().Play();
 
             // update score in game manager
@@ -169,25 +154,30 @@ public class PowerUpController : MonoBehaviour
             statusDisplayField.text = points;
             int bonusHealth = 0;
 
+            // randomly give Player a random bonus
             if (Random.Range(1f,20f) >= 17f)
             {
-                // Player got a random bonus, at random
                 bonusHealth = Random.Range(10, 20);
             }
 
             if (bonusHealth > 0)
             {
-                // you got a bonus
+                // player got a bonus
                 string bonus = bonusHealth.ToString();
-                string blank = "Bonus Health Points! " + bonus +"%";
+                string blank = "You're Lucky! Bonus Health Points! " + bonus +"%";
                 
                 // find bonus health field
                 statusDisplayField.text = blank.ToString();
             }
 
+            // update player health by remaining powerup health points and any bonus
             theGameControllerScript.UpdatePlayerHealth(powerUpHealthPoints + bonusHealth);
+
             bonusHealth = 0;
+
+            // disable it as we don't more collisions if we walk through it
             Destroy(gameObject, 0.35f);
+            hitByPlayer = false;
         }
     }
 }
