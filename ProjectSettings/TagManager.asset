@@ -5,54 +5,58 @@ TagManager:
   serializedVersion: 2
   tags:
   - Shootable
-  - Missile
-  - Enemy Drone
-  - Enemy Warrior
-  - Focus Point
-  - Power Up
+  - Concrete
+  - Player Head Lamp
+  - Main Lighting
+  - ScorePlayer
+  - Ground
   - EnemyWaveNum
+  - Boundary Top
   - SmartBomb
   - LivesPlayer
+  - Credits Replay Panel
+  - Boundary Bottom
   - EnemiesRemaining
-  - Ground
   - EnemiesKilledTotal
   - Player Health
   - Panel
   - SpawnManager
-  - ScorePlayer
   - Instructions Panel
+  - Flame Point
   - Status Display
-  - Demo Player
-  - Demo Warrior
-  - Demo Drone
+  - Ponds
+  - Enemy Drone
+  - Enemy Warrior Base Object
+  - Power Up
+  - Missile
+  - Enemy Warrior
   - Bomb Flames
-  - Main Lighting
+  - Focus Point
+  - Umbrella
+  - Patio
+  - Building
+  - Sonamoo Tree
+  - Skyscraper
+  - Black Car
+  - Tocus
+  - Demo Player
+  - Jumok Tree
+  - Newngsowha Tree
+  - Table
+  - Demo Warrior
   - Fire Flies
   - Candles
   - Flame Thrower
-  - Flame Point
-  - Enemy Warrior Base Object
-  - Boundary Top
-  - Boundary Bottom
-  - Player Base Object
-  - Credits Replay Panel
-  - Jumok Tree
-  - Newngsowha Tree
+  - Demo Drone
   - DanpungMix Tree
-  - Patio
-  - Tocus
-  - Sonamoo Tree
-  - Black Car
-  - Table
-  - Umbrella
-  - Beut Tree
-  - Concrete
-  - Ponds
   - Grassy Areas
-  - Building
-  - Skyscraper
-  - High Score
-  - Player Head Lamp
+  - Stone Fence
+  - Neuti Tree
+  - Beut Tree
+  - FOCE08
+  - High Scores Table
+  - High Scores Panel
+  - HighScoreReturn
   layers:
   - Default
   - TransparentFX

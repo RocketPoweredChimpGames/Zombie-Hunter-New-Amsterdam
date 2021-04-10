@@ -1,7 +1,6 @@
 ﻿using System;
 using System.Collections;
 using System.Collections.Generic;
-using UnityEditor.Experimental.UIElements.GraphView;
 using UnityEngine;
 using UnityEngine.AI;
 
@@ -9,6 +8,8 @@ using UnityEngine.AI;
 // on the Game Mesh, **NOTE** NOT used now as for some reason Nav Mesh doesnt work, cannot warp to it whatever I try as says NavMeshAgent is too
 // far away, but left for time being
 // SO.... NO patrolling, collecting of Powerups, just simply attack the player!
+
+//notgonnabeusing UnityEditor.Experimental.UIElements.GraphView;
 
 public class EnemyController : MonoBehaviour
 {
@@ -332,10 +333,44 @@ public class EnemyController : MonoBehaviour
                 {
                     // only move towards player if this enemy isn't already dead
                     // always use AddForce for characters with rigibodies!
-                    theEnemyRb.AddForce(direction * 90, ForceMode.Impulse);
+                    //theEnemyRb.AddForce(direction * 90, ForceMode.Impulse);
+                    //theEnemyRb.AddForce(direction * FindCurrentEnemySpeed() , ForceMode.Impulse);
+
+                    // use Movetowards() instead for now
+                    gameObject.transform.position = Vector3.MoveTowards(transform.position, thePlayer.transform.position, Time.deltaTime * FindCurrentEnemySpeed());
+
+                    // this is too fast on faster cpu pc's
+                    //  gameObject.transform.Translate((thePlayer.transform.position - gameObject.transform.position) * Time.deltaTime * 0.5f);
+                    //  direction * FindCurrentEnemySpeed(), ForceMode.Impulse);
+                    /// removed above.
+                }
+                else
+                {
+                    theEnemyRb.velocity = new Vector3(0f,0f,0f);
                 }
             }
         }
+    }
+
+    enum enemySpeeds { slow, medium, normal }
+
+    public float FindCurrentEnemySpeed()
+    {
+        // gets the enemy speed set by player from the game controller
+
+        int nextSpeed = theGameControllerScript.GetEnemySpeed();
+
+        switch (nextSpeed)
+        {
+            // Speeds to use
+            case 0:  enemySpeed  = 1.5f; break; // very slow speed (maybe it will fix probs for some users?)
+            case 1:  enemySpeed  = 2.5f; break; // medium speed (less than normal)
+            case 2:  enemySpeed  = 3.5f; break; // normal speed
+            default: enemySpeed  = 3.5f; break; // normal speed defaulted to
+        }
+
+        // return new speed
+        return enemySpeed;
     }
 
     Vector3 CheckMoveVector(Vector3 goingTo)
@@ -416,6 +451,7 @@ public class EnemyController : MonoBehaviour
         if (hitCount >= maxHits && !dyingPlaying)
         {
             // play death sound and destroy
+            dyingPlaying = true;
             DyingState();
         }
     }
@@ -424,50 +460,53 @@ public class EnemyController : MonoBehaviour
     {
         // Plays dying noise, changes animation state, and starts coroutine to delete when finished animation
 
-        if (!dyingPlaying)
+        // turn off collider so don't add more damage to player, or accept any more hit damage 
+        // as now dead
+        Collider theCollider = gameObject.GetComponent<Collider>();
+
+        if (theCollider)
         {
-            dyingPlaying = true;
-            
-            // turn off collider so don't add more damage to player, or accept any more hit damage 
-            // as now dead
-            Collider theCollider = gameObject.GetComponent<Collider>();
-
-            if (theCollider)
-            {
-                theCollider.enabled = false;
-            }
-
-            // update kill count display
-            theGameControllerScript.UpdateEnemiesKilled();
-
-            // set to enemy is falling back animation
-            // had problems with this as even though has end time it went
-            // back to idle or something grrrr!
-            theAnimator.SetBool("b_isShot", true);
-            theAnimator.SetFloat("f_Speed", 2.2f);
-            theAnimator.SetBool("b_moveForward", true);
-
-            // set & play audio clip
-            GetComponent<AudioSource>().playOnAwake = true;
-            GetComponent<AudioSource>().clip = dyingScreech;
-            GetComponent<AudioSource>().Play();
-
-            // remove our entry in array of gameobjects being separated apart (to prevent character clipping elsewhere)
-            //this.GetComponent<EnemySeparation>().RemoveDestroyedEnemy(gameObject);
-
-            // delay destruction till animation completes
-            StartCoroutine("CancelIsShot");
+            theCollider.enabled = false;
         }
+
+        // update kill count display
+        theGameControllerScript.UpdateEnemiesKilled();
+
+        // set to enemy is falling back animation
+        // had problems with this as even though has end time it went
+        // back to idle or something grrrr!
+            
+        // check if ended already
+        if (!theAnimator.GetCurrentAnimatorStateInfo(0).IsName("Z_FallingBack"))
+        {
+            theAnimator.SetFloat("f_Speed", 0f);
+            theAnimator.SetBool("b_moveForward", false);
+            theAnimator.SetBool("b_isShot", true);
+        }
+            
+        // set & play audio clip
+        AudioSource theSource = GetComponent<AudioSource>();
+        theSource.playOnAwake = true;
+        theSource.clip = dyingScreech;
+        theSource.Play();
+
+        // remove our entry in array of gameobjects being separated apart (to prevent character clipping elsewhere)
+        //this.GetComponent<EnemySeparation>().RemoveDestroyedEnemy(gameObject);
+
+        // delay destruction till animation completes
+        StartCoroutine("CancelIsShot");
     }
 
     IEnumerator CancelIsShot()
     {
-        // wait for exact duration of animation "Zombie_fallingback" (42 frames at 30 fps = 1.4s)
+        // wait for exact duration of animation "Zombie_fallingback" (42 frames at 30 fps = 1.4s) plus 1s for dead on ground
         yield return new WaitForSeconds(gameObject.GetComponent<Animator>().GetCurrentAnimatorStateInfo(0).length);
 
         // now has been given chance for animation, so prevent it repeating
         theAnimator.SetBool("b_isShot", false);
         theAnimator.SetBool("b_isDead", true);
+
+        yield return new WaitForSeconds(0.5f);
 
         // if you ever put an object in a parent object hierarchy must destroy parent container object to destroy child too!
         // but now changed back, so just destroy object!

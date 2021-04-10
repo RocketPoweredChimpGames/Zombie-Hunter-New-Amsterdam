@@ -8,15 +8,15 @@ using UnityEngine.UI;
 public class PlayerController : MonoBehaviour
 {
     // player & game components
-    private Rigidbody  playerRb;          // player rigidbody component
-    private GameObject focusPoint;        // camera focus point (a child of player object)
-    private GameObject theGameController; // invisible game object in scene so gets updates
-    private Animator   theAnimator;       // player's animator component
-    private GameplayController theGameControllerScript; // game controller script
-    
+    private Rigidbody  playerRb;                         // player rigidbody component
+    private GameObject focusPoint;                       // camera focus point (a child of player object)
+    private GameObject theGameController;                // invisible game object in scene so gets updates
+    private Animator   theAnimator;                      // player's animator component
+    private GameplayController theGameControllerScript;  // game controller script
+
     // particle effects
     private GameObject   theFireFlies    = null;  // fire flies for night mode
-    private GameObject[] theCandles      = null;  // corner candles for night mode
+    private GameObject[] theCandles      = null;  // table candles for night mode effects
     public  GameObject   theFlameThrower = null;  // flamethrower effect for gun
 
     // spot light
@@ -51,6 +51,20 @@ public class PlayerController : MonoBehaviour
     // night mode toggle
     bool bNightModeOn = false;
 
+    // bool set by panels to stop player input going ahead here until they say so
+    bool bAnotherPanelInControl = false;
+
+    public void SetAnotherPanelInControl(bool inControl)
+    {
+        bAnotherPanelInControl = inControl;
+    }
+
+    public bool IsAnotherPanelInControl()
+    {
+        // needed by Instruction panel to see if some other user panel is currently in control
+        return bAnotherPanelInControl;
+    }
+
     // Start is called before the first frame update
     void Start()
     {
@@ -79,6 +93,7 @@ public class PlayerController : MonoBehaviour
             // set text and enable it
             smartBombButton.GetComponentInChildren<Text>().text = "Smart Bomb";
             smartBombButton.interactable = true;
+            smartBombAvailable = true;
         }
 
         // get game manager
@@ -187,16 +202,17 @@ public class PlayerController : MonoBehaviour
 
         // suspend turning off for a little bit to allow it to end sequence
         yield return new WaitForSeconds(theFlameThrower.GetComponentInChildren<ParticleSystem>().duration);
-
-        // not needed now but left in...
     }
 
     // Update is called once per frame
     void Update()
     {
-        // allow player input if game started or restarted and game is not over
-        if (theGameControllerScript.HasGameStarted() && !theGameControllerScript.IsGameOver() ||
-            (theGameControllerScript.HasGameRestarted() && !theGameControllerScript.IsGameOver()))
+        // allow player input if game started or restarted and game is not over, but not if a control panel
+        // like instructions / credits / highscores panel is currently open and in use
+        //if ( theGameControllerScript.HasGameStarted()   && !theGameControllerScript.IsGameOver() && !bAnotherPanelInControl ||
+        //    (theGameControllerScript.HasGameRestarted() && !theGameControllerScript.IsGameOver() && !bAnotherPanelInControl))
+
+        if ( (theGameControllerScript.HasGameStarted() || theGameControllerScript.HasGameRestarted()) && !theGameControllerScript.IsGameOver() && !bAnotherPanelInControl)
         {
             // game has started/restarted and isn't over yet
 
@@ -224,7 +240,7 @@ public class PlayerController : MonoBehaviour
                 float verticalInput   = Input.GetAxis("Vertical");   // -1 to 1 input from key press (down/up Z Axis)
                 float speed           = 12f;
 
-                /*ORIGINAL CODE FOR PLAYER MOVEMENT IF ALL ELSE FAILS - DO NOT CHANGE STUFF INSIDE HERE!
+                /*  ORIGINAL CODE FOR PLAYER MOVEMENT IF ALL ELSE FAILS - DO NOT CHANGE STUFF INSIDE HERE!
                     // Move the player depending on which key is pressed
                     if (Input.GetKey(KeyCode.UpArrow) || Input.GetKey(KeyCode.DownArrow))
                     {
@@ -238,28 +254,14 @@ public class PlayerController : MonoBehaviour
                     }
                     
                     transform.Translate(Vector3.right * horizontalInput * Time.deltaTime * speed);
-                    END OF ORIGINAL CODE 
+                    END OF ORIGINAL CODE */
                 
-                    // THIS CODE WORKS FOR ENEMY ROTATION
-                    
-                    // turn enemy rigidbody in direction of player and LookAt the players direction
-                    theEnemyRb.velocity = direction;
-                    transform.LookAt(thePlayer.transform);
-                    transform.rotation = Quaternion.LookRotation(direction);
+                   // original dont change
+                   // rotate player (sort of)
+                   // transform.Rotate(Vector3.up, horizontalInput * Time.deltaTime * 50);
+                
 
-                    // now move the enemy - MUST use AddForce for characters with rigibodies!
-                    gameObject.GetComponentInChildren<Rigidbody>().AddForce(direction * 90, ForceMode.Impulse);
-                    
-                }
-
-                /// original dont change
-                // rotate player (sort of)
-                //transform.Rotate(Vector3.up, horizontalInput * Time.deltaTime * 50);
-                // end of original dont change
-
-                */
-
-                // New movement control code using AddForce()
+                // New movement control code
                 if (horizontalInput != 0)
                 {
                     // **********   USE THIS IF MY CHANGE DOESNT WORK ***************************************************
@@ -268,7 +270,7 @@ public class PlayerController : MonoBehaviour
                     // Get the Root Transform of the Player Object (i.e. the top level game object)
                     Transform theRootTransform = transform.root;
 
-                    // now create a new vector3 to lookAt ----   example one
+                    // now create a new vector3 to lookAt
                     Vector3 m_EulerAngleVelocity = new Vector3(0f, 80f, 0f);
 
                     Quaternion deltaRotation = Quaternion.Euler(m_EulerAngleVelocity * Time.deltaTime * horizontalInput);
@@ -279,31 +281,18 @@ public class PlayerController : MonoBehaviour
                 }
                 // **********   USE THIS IF MY CHANGE DOESNT WORK ***************************************************
 
-
-                // OMG my brainwave actually works, now if camera was actually a lot closer would work better
-                // but need it there for field of view!
                 if (horizontalInput != 0)
                 {
-                    Rigidbody theRigidBody = gameObject.GetComponentInChildren<Rigidbody>();
+                    // HORIZONTAL MOVEMENT
 
-                    // Get the Root Transform of the Player Object (i.e. the top level game object)
-                    Transform theRootTransform = transform.root;
-
-                    // get the Focus Point position
-                    Vector3 focusPoint = GameObject.FindGameObjectWithTag("Focus Point").GetComponent<Transform>().position;
-
-                    // get the Main Camera's offset (attached as a child of player) position from the focus point
-                    Vector3 cameraPoint = GameObject.FindGameObjectWithTag("Main Camera").GetComponentInChildren<Transform>().position;
-
-                    // now calculate the midpoint between the current position of Player and the camera
-                    Vector3 pivotPoint = transform.position + ((transform.position + focusPoint + cameraPoint) / 2);
-
-                    // now pivot around the new point!
-                    transform.RotateAround(pivotPoint, Vector3.up, 1f);
+                    // rotate around
+                    transform.RotateAround(transform.position, Vector3.up, 3f * horizontalInput);
                 }
 
                 if (verticalInput != 0)
                 {
+                    // VERTICAL MOVEMENT
+
                     // Get the root transform of the Player Object (i.e. our container object's transform)
                     Transform theRootTransform = transform.root;
 
@@ -311,23 +300,15 @@ public class PlayerController : MonoBehaviour
                     Vector3 m_EulerAngleVelocity = new Vector3(0f,
                                                                0f,
                                                                theRootTransform.position.z);
-                    //gameObject.GetComponentInChildren<Rigidbody>().AddForce(theNewVector * 100, ForceMode.Impulse);
+                    
                     theRootTransform.Translate(Vector3.forward * verticalInput * Time.deltaTime * speed);
-
-                    // look at the new direction
-                    //transform.LookAt(theNewVector);
-                    //transform.root.rotation = Quaternion.LookRotation(theNewVector);
-
-                    // now move the player - MUST use AddForce for characters with rigibodies!
-                    //gameObject.GetComponentInChildren<Rigidbody>().AddForce(theNewVector, ForceMode.Impulse);
-                    //gameObject.GetComponent<Rigidbody>().AddForce(theNewVector *100f, ForceMode.Impulse);
                 }
                 else
                 {
                     transform.root.gameObject.GetComponentInChildren<Rigidbody>().velocity = new Vector3(0f, 0f, 0f);
                 }
 
-                // check bounds for player movement
+                // check boundaries for player movement
                 if (horizontalInput != 0 || verticalInput != 0)
                 {
                     // keep player within playfield
@@ -398,6 +379,7 @@ public class PlayerController : MonoBehaviour
                     else
                     {
                         // set animation moving backwards
+                        // need to add on only do it if finished
                         theAnimator.SetBool("b_moveForward", false);
                         theAnimator.SetBool("b_moveLeft", false);
                         theAnimator.SetFloat("f_Speed", 0f);
@@ -413,18 +395,18 @@ public class PlayerController : MonoBehaviour
                     theAnimator.SetFloat("f_Speed", 0f);
                 }
 
-                // Jump in the air!
-
-                if (Input.GetKeyDown(KeyCode.J))
+                // Quick exit game!
+                if (Input.GetKeyDown(KeyCode.Escape))
                 {
-                    // jump 10 units up
-                    
+                    // quit game
+                    theGameControllerScript.bGameOver = true;
+                    Application.Quit();
                 }
 
-                                // shoot gun
+                // Shoot Flamethrower
                 if (Input.GetKeyDown(KeyCode.Space))
                 {
-                    // Shoot the gun / do particle effects & gun noise
+                    // Shoot the flamethrower gun / do particle effects & gun noise
                     ShootGun();
                 }
 
@@ -440,29 +422,62 @@ public class PlayerController : MonoBehaviour
                     // Toggle Night Mode
                     ToggleNightMode();
                 }
+
+                if (Input.GetKeyDown(KeyCode.Alpha1))
+                {
+                    // low speed (much lower than normal)
+                    theGameControllerScript.ResetEnemySpeeds(0);
+                }
+                else if (Input.GetKeyDown(KeyCode.Keypad1))
+                { 
+                    // low speed (much lower than normal)
+                    theGameControllerScript.ResetEnemySpeeds(0);
+                }
+                else if (Input.GetKeyDown(KeyCode.Alpha2))
+                {
+                    // medium speed (less than normal)
+                    theGameControllerScript.ResetEnemySpeeds(1);
+                }
+                else if (Input.GetKeyDown(KeyCode.Keypad2))
+                {
+                    // medium speed (less than normal)
+                    theGameControllerScript.ResetEnemySpeeds(1);
+                }
+                else if (Input.GetKeyDown(KeyCode.Alpha3))
+                {
+                    // normal speed
+                    theGameControllerScript.ResetEnemySpeeds(2);
+                }
+                else if (Input.GetKeyDown(KeyCode.Keypad3))
+                {
+                    // normal speed
+                    theGameControllerScript.ResetEnemySpeeds(2);
+                }
             }
         }
 
         // ok game could be over - so allow restart
-        if (theGameControllerScript.IsGameOver())
+        if (theGameControllerScript.IsGameOver() && !bAnotherPanelInControl)
         {
             // get restart
-            theGameControllerScript.PostStatusMessage("Game Over - Press 'S' to Restart!");
-        
-            if (Input.GetKeyDown(KeyCode.S))
+            //theGameControllerScript.PostStatusMessage("Game Over - Press 'S' to Restart!");
+
+            // clear any old message
+            //theGameControllerScript.PostStatusMessage(" ");
+
+            if (Input.GetKeyDown(KeyCode.R))
             {
                 // restart game - keeping high scores etc this time
-                theGameControllerScript.RestartGame();
-            }
-        }
 
-        if (theGameControllerScript.IsGameOver())
-        {
-            // game over, wait for player to restart game
+                // sets day box for restart & turns off headlamp
+                if (theHeadLamp.activeSelf == true)
+                {
+                    // toggle nightmode to off as its currently on
+                    ToggleNightMode();
+                }
 
-            if (Input.GetKeyDown(KeyCode.S))
-            {
-               // Restart game
+                // restart game - no pressing R in High scores panel should now just reset score health info and pass to
+                // instruction panel where pressing S now restarts game....
                 theGameControllerScript.RestartGame();
             }
         }
@@ -631,15 +646,20 @@ public class PlayerController : MonoBehaviour
                     if (!theEnemyController.IsDying())
                     {
                         // not dead so add a hit
-                        theEnemyController.AddHit();
+                         theEnemyController.AddHit();
                     }
                 }
             }
         }
 
         // start coroutine to turn off Attack boolean to allow animator to do its animation completely
-        // without repeating (hopefully)
-        StartCoroutine("TurnOffAttack");
+        // without repeating (hopefully), but only turn it off after shotting gun if a dying state animation has finished playing
+
+        // check if ended already
+        if (!theAnimator.GetCurrentAnimatorStateInfo(0).IsName("Z_FallingBack"))
+        {
+            StartCoroutine("TurnOffAttack");
+        }
     }
 
     IEnumerator TurnOffAttack()

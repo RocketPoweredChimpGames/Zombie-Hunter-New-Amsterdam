@@ -53,6 +53,10 @@ public class CreditsReplayPanelController : MonoBehaviour
     void ActivateInstructionsPanel()
     {
         // turn off this panel, activate instruction panel and start camera
+        
+        // re-enable user input in Player controller
+        thePlayer.GetComponent<PlayerController>().SetAnotherPanelInControl(false);
+
         gameObject.SetActive(false);
         theInstructionPanel.SetActive(true);
         theMainCamera.gameObject.SetActive(true);

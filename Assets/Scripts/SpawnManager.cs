@@ -17,7 +17,8 @@ public class SpawnManager : MonoBehaviour
     private GameplayController theGameManager;
     private GameObject thePlayer;
 
-    // testing only - private vars later             ALL TIMES BELOW allow for two zones now!
+    // testing  - ALL TIMES BELOW allow for two spawn zones now, i.e. a drone will appear every 12s in zone you are in
+
     private float droneSpawnInterval     = 6.0f;  // spawn a drone every 6 seconds (or 12s in zone you're in now)
     private float warriorSpawnInterval   = 6.0f;  // spawn a warrior every 6 seconds until we have a maximum number
     private float powerPillSpawnInterval = 5.0f;  // spawn a power up pill every 10 seconds
@@ -30,6 +31,13 @@ public class SpawnManager : MonoBehaviour
 
     public bool startedSpawning = false;
 
+    // used to select next spawn zone, currently only 2 zones each, but could be more (& different) later
+    // so leaving these individual variables in for now!
+    int warriorSpawnZone = 0; // area for next warrior (zombie) spawn
+    int droneArea        = 0; // area for next drone spawn
+    int powerUpSpawnZone = 0; // area for next powerUp spawn
+
+    
     // Start is called before the first frame update
     void Start()
     {
@@ -37,7 +45,7 @@ public class SpawnManager : MonoBehaviour
         theGameManager = FindObjectOfType<GameplayController>();
         theGameControllerScript = theGameManager.GetComponent<GameplayController>();
 
-        thePlayer = GameObject.FindGameObjectWithTag("Player");         // player
+        thePlayer = GameObject.FindGameObjectWithTag("Player"); // the player
     }
 
     // Update is called once per frame
@@ -55,8 +63,6 @@ public class SpawnManager : MonoBehaviour
         }
     }
 
-    int warriorSpawnZone = 0;
-    
     // Start Spawning
     void SpawnWarrior()
     {
@@ -91,13 +97,16 @@ public class SpawnManager : MonoBehaviour
                 warriorSpawnZone = 1; // set to original
             }
 
+            // game stats stuff JUST for reference from game controller while coding
+            // enemiesKilledThisWave = 0;  // how many killed on current wave
+            // maxEnemiesPerWave = 50; // maximum per wave before starting next wave
+
             // check if spawning these would go over the maximum allowed number of enemies on screen
-            if (numberOfEnemiesOnScreenNow <= maxPerWave - nToSpawnNow)
+            if (numberOfEnemiesOnScreenNow <= (maxPerWave - nToSpawnNow)) 
             {
                 for (int iSpawn = 0; iSpawn < nToSpawnNow; iSpawn++)
                 {
-                    // start to spawn enemies, power ups at regular intervals
-                    // spawn in different places too
+                    // spawn enemies at different random places
 
                     float randomX   = 0f;
                     float randomZ   = 0f;
@@ -111,7 +120,7 @@ public class SpawnManager : MonoBehaviour
                         // new bigger area by original player site
                         randomX = Random.Range(10f, 160f);
                         randomZ = Random.Range(0f,  175f);
-                        Debug.Log("Spawning Warrior in Zone 1");
+                        //Debug.Log("Spawning Warrior in Zone 1");
                     }
                     
                     if (warriorSpawnZone == 2)
@@ -131,70 +140,78 @@ public class SpawnManager : MonoBehaviour
                     newWarrior = Instantiate(warriorToSpawn, randomSpawnPos, Quaternion.identity);
                 }
             }
+            else
+            {
+                // need to tell player to go find the remaining warriors to level up
+                //theGameControllerScript.PostStatusMessage("Number of Zombies on screen " + numberOfEnemiesOnScreenNow);
+            }
         }
     }
 
-    int droneArea = 0; // area for next drone spawn
-
     void SpawnDrone()
     {
-        // Spawns Drones in the air
-        GameObject droneToSpawn = Drones[0];  // for testing only
-
-        if (droneToSpawn != null)
+        if (Random.Range(1,10) >=2)
         {
-            // chose a random number of drones to spawn
-            int nHowMany = Random.Range(1, maxDronesPerSpawn);
+            // don't spawn all the time
+            // Spawns Drones in the air
+            GameObject droneToSpawn = Drones[0];  // for testing only
 
-            droneArea++; // increment drone spawn area
-
-            for (int nDrone = 0; nDrone <nHowMany; nDrone++)
+            if (droneToSpawn != null)
             {
-                float randomX = 0f;
-                float randomZ = 0f;
+                // chose a random number of drones to spawn
+                int nHowMany = Random.Range(1, maxDronesPerSpawn);
 
-                if (droneArea >2)
+                droneArea++; // increment drone spawn area
+
+                if (droneArea > 2)
                 {
                     // only 2 zones at present
                     droneArea = 1;
                 }
 
-                switch (droneArea)
+                for (int nDrone = 0; nDrone < nHowMany; nDrone++)
                 {
-                    case 1:
+                    float randomX = 0f;
+                    float randomZ = 0f;
+
+                    switch (droneArea)
                     {
-                        // original spawn zone
-                        randomX = Random.Range(10f, 160f);
-                        randomZ = Random.Range(175f, 190f);
-                        break;
+                        case 1:
+                            {
+                                // original spawn zone
+                                randomX = Random.Range(10f, 160f);
+                                randomZ = Random.Range(175f, 190f);
+                                break;
+                            }
+
+                        case 2:
+                            {
+                                // second spawn zone - whole area on left side
+                                randomX = Random.Range(-40f, -160f);
+                                randomZ = Random.Range(175f, 190f);
+                                break;
+                            }
                     }
 
-                    case 2:
-                    {
-                        // second spawn zone - whole area on left side
-                        randomX = Random.Range(-40f, -160f);
-                        randomZ = Random.Range( 175f, 190f);
-                        break;
-                    }
+                    Vector3 randomSpawnPos = new Vector3(randomX, 8f + Random.Range(0f, 6f), 115f + Random.Range(1f, 10f));
+                    GameObject newDrone;
+
+                    // spawn it at the random height and position
+                    newDrone = Instantiate(droneToSpawn, randomSpawnPos, Quaternion.identity);
+
+                    // rotate drone to face right direction - doesn't work for some reason,
+                    // tried rotating the animators transform and the objects transform! bah!
+                    newDrone.GetComponent<Animator>().GetComponent<Rigidbody>().transform.rotation = Quaternion.Euler(0f, 180f, 0f);
+
+                    // try this roate here?
+                    newDrone.transform.Rotate(Vector3.up, 180f);
                 }
-
-                Vector3 randomSpawnPos = new Vector3(randomX, 8f + Random.Range(0f,6f), 115f +Random.Range(1f,10f));
-                GameObject newDrone;
-
-                // spawn it at the random height and position
-                newDrone = Instantiate(droneToSpawn, randomSpawnPos, Quaternion.identity);
-
-                // rotate drone to face right direction - doesn't work for some reason,
-                // tried rotating the animators transform and the objects transform! bah!
-                newDrone.GetComponent<Animator>().GetComponent<Rigidbody>().transform.rotation = Quaternion.Euler(0f, 180f, 0f);
-
-                // try this roate here?
-                newDrone.transform.Rotate(Vector3.up, 180f);
             }
         }
+        
     }
 
-    int powerUpSpawnZone = 0; // area for next powerup spawn
+    
     void SpawnPowerPill()
     {
         // Spawn a Powerup

@@ -11,7 +11,7 @@ using UnityEngine.UI;
 public class PowerUp
 {
     // class used to store PowerUp object and creation time
-    // for use in a List<>
+    // for use in a List<> here in gameplay controller (later dev)
     public PowerUp( GameObject gObj, float tTime)
     {
         thePowerUp = gObj;       // the game object on screen
@@ -35,8 +35,12 @@ public class GameplayController : MonoBehaviour
     public GameObject   theScoringPanel;        // displays player scores, player start/re-start game
     public GameObject   theInstructionPanel;    // displayed prior to game start with instructions & animations of alien and player
     public GameObject   theCreditsReplayPanel;  // credits and replay panel at end of game
+    public GameObject   theHighScoresPanel;     // top ten high scores panel
 
-    // all noises are setup by dragging into relevant fields in the gui editor
+    private HighScoreTableController   theHighScoresControllerScript; // high scores controller script
+    //private InstructionPanelController theInstructionPanelScript;     // instruction panel controller script
+
+    // all noises are setup by dragging into relevant fields in the Unity editor
     public  AudioClip   countdownNoise;         // played when less than 60% (or whatever changed to) health
     public  AudioClip   criticalCountdownNoise; // played when 10% or under health 
     public  AudioClip   lifeLostNoise;          // life lost noise
@@ -59,7 +63,7 @@ public class GameplayController : MonoBehaviour
     private List<PowerUp> currentPowerups;      // current powerups on screen for grand finale destruction sequence
     private SpawnManager theSpawnManager;       // the spawn manager
 
-    private UnityEngine.Vector3[] originalStartPosition; // position where our 'Warrior' objects were originally spawned (not used yet)
+    private UnityEngine.Vector3[] originalStartPosition; // position where our 'Zombie' objects were originally spawned (not used yet)
     
     // game control 
     public  bool bGameStarted     = false;  // has game started
@@ -74,8 +78,10 @@ public class GameplayController : MonoBehaviour
     public  int playerHealth = 100;         // initial full health
     private int playerScore  = 0;           // initial player score
     private int highScore    = 0;           // put in a file later to keep
-    private int[] highScores;               // top ten high scores - probably read them from a serialised JSON file later on
     
+    //private int[] highScores;               // top ten high scores - probably read them from a serialised JSON file later on
+    
+    private int enemySpeedSetting = 2;      // set by Player to tell enemies speed to go at (0- slow, 1-medium, 2-normal)
 
     // game stats stuff
     public  int enemyWaveNumber       = 0;  // wave number
@@ -86,6 +92,19 @@ public class GameplayController : MonoBehaviour
     // sky box to use at start
     public Material theDaySkybox; // daytime sky box
 
+    public void ShowHighScores()
+    {
+        // tell highscore controller to show high scores
+        theHighScoresControllerScript.ShowHighScoresPanel(true);
+    }
+
+    private void SaveHighScores(int playerScore, string playerName)
+    {
+        // save the high score entry to PlayerPrefs as a JSON string
+    }
+
+
+    
     public bool HasGameStarted()
     {
         // returns whether game has started or not
@@ -108,12 +127,13 @@ public class GameplayController : MonoBehaviour
             bGameStarted    = bStart; // start game
             enemyWaveNumber = 1;      // first wave
 
-            if (highScore == 0)
-            {
-                string hiScore = "0";
+            // start animations and music again as could have come from an end game situation now
+            Time.timeScale = 1f;
+            AudioListener.pause = false;
 
-                HighScore.SetText(hiScore.ToString());
-            }
+            // set with high score read from PlayerPrefs elsewhere
+            highScore = theHighScoresControllerScript.GetHighScore();
+            HighScore.SetText(highScore.ToString());
 
             PauseGame(false); // turn off pause
 
@@ -160,9 +180,11 @@ public class GameplayController : MonoBehaviour
         }
     }
 
+    private bool addedHighScore = false;
+
     public void SetGameOver()
     {
-        // display restart option on screen, and tell player controller to accept input of "Y" to start again?
+        // display game over on screen, accepts any high score entry before
         bGameOver = true;
 
         GameObject[] theWarriors = GameObject.FindGameObjectsWithTag("Enemy Warrior Base Object");
@@ -190,14 +212,25 @@ public class GameplayController : MonoBehaviour
             Destroy(drone);
         }
 
-        string blank = " ";
-
-        blank = "Game Over! Press 'S' to Restart!";
+        string blank = "GAME OVER!";
         StatusDisplay.text = blank.ToString();
         
         // stop animations and music
         Time.timeScale      = 0f;
         AudioListener.pause = true;
+
+        // do a function which will check highscore against high score table
+        // and if higher will pass to showhighscore function to get input
+        // else just show high score table and option to return to menu
+        // and also give option to delete existing entries (but maybe from main menu entry not here)
+        ShowHighScores(); // change to CheckIfInHighscores(playerScore) which calls say showhighscores(playerScore, true); to update it
+
+        if (theHighScoresControllerScript.GoodEnoughForHighscores(playerScore))
+        {
+            //  add it to high scores table for now to test
+            addedHighScore = true;
+            theHighScoresControllerScript.AddHighscoreEntryWithName(playerScore);
+        }
     }
 
     public bool IsGameOver()
@@ -241,15 +274,6 @@ public class GameplayController : MonoBehaviour
 
     public void StartWaveNumber( int waveNum)
     {
-        // destroy the warriors which may not have been killed due to animations not having completed - BUG FIX!!! AAGH!
-        GameObject[] theWarriors = GameObject.FindGameObjectsWithTag("Enemy Warrior");
-
-        // destroy warriors
-        foreach (GameObject warrior in theWarriors)
-        {
-            // destroy them as game over
-            Destroy(warrior);
-        }
 
         enemiesKilledThisWave = 0;
 
@@ -262,21 +286,23 @@ public class GameplayController : MonoBehaviour
 
     public void RestartGame()
     {
-        // restarts game when finished and user wants to play again
-        // reset score/wave and other variables
-        enemyWaveNumber       = 1;
-        totalEnemiesKilled    = 0;
-        enemiesKilledThisWave = 0;
-        bGameReStarted        = true; // for high score display later
-        bGamePaused           = false;
-        bGameOver             = false;
-        playerHealth          = 100;
-        playerScore           = 0;
-        playerLives           = 3;
+        // restart game (NOW goes back to main instructions panel now) when finished and user given option to play again
+        // resets score/wave and other variables, resets day box, etc.
+        enemyWaveNumber       = 1;     // set initial wave
+        totalEnemiesKilled    = 0;     // no enemies killed
+        enemiesKilledThisWave = 0;     // nothing killed this wave
+        bGameReStarted        = true;  // for high score display later
+        bGamePaused           = false; // not paused
+        bGameOver             = false; // no longer game over state
+        playerHealth          = 100;   // reset health
+        playerScore           = 0;     // reset score
+        playerLives           = 3;     // reset lives
 
-        // start animations and music again
+        addedHighScore        = false; // allow high score to be added at end again
+
+        /* // start animations and music again
         Time.timeScale = 1f;
-        AudioListener.pause = false;
+        AudioListener.pause = false; */
 
         // reset contents of display fields
         EnemyWaveNum.SetText(enemyWaveNumber.ToString());
@@ -290,13 +316,26 @@ public class GameplayController : MonoBehaviour
         string blank = " ";
         StatusDisplay.text = blank.ToString();
 
-        // turn off any playing sounds
+        // turn off any possibly playing sounds
         PlayCountdown(false);
         PlayCriticalCountdown(false);
 
         // re-enable smart bomb button
         thePlayer.GetComponent<PlayerController>().SmartBombReset(); // reset smart bomb availability
-        bGameStarted = true; // causes start of spawning/re-enables player input/starts health countdown
+
+        // don't start game from here now - just go to instructions panel
+        // bGameStarted = true; // causes start of spawning/re-enables player input/starts health countdown
+
+        // reposition player to start position
+        theStartPosition.position = new UnityEngine.Vector3(36f, 0.1f, -75f);
+        transform.Translate(theStartPosition.position);
+
+        // Hide highscores panel
+        theHighScoresControllerScript.ShowHighScoresPanel(false); // Do not place this after StartGame()
+        
+        // turn on instruction panel, sound, and start camera
+        theInstructionPanel.SetActive(true);
+        AudioListener.pause = false;
     }
 
     // no longer needed as enemies no longer do searches for energy
@@ -341,14 +380,31 @@ public class GameplayController : MonoBehaviour
         else return null;
     }
 
+    private bool restartReposition = false; // reposition on game restart
+
+    public bool PlayerRepositionForStart()
+    {
+        // return whether should be repositioned on restart
+        return restartReposition;
+    }
+
+    public void ResetEnemySpeeds(int newSpeed)
+    {
+        // Set speed for enemies - used by player controller
+        enemySpeedSetting = newSpeed;
+    }
+
+    public int GetEnemySpeed()
+    {
+        // returns enemy speed setting to enemy objects (and set from player controller)
+        return enemySpeedSetting;
+    }
+
     // Start is called before the first frame update
     void Start()
     {
         // do any setup here, initalise scores, display instructions, wait for start, then tell Spawnmanager to start   
-        // when user requests
-        //StartGame(true); // will cause SpawnManager to start spawning
-
-        SetupHighScores(); // will read from a file at some point
+        // spawning objects when user starts game from Playercontroller
 
         // get audio source component
         theAudioSource = GetComponent<AudioSource>();
@@ -356,7 +412,7 @@ public class GameplayController : MonoBehaviour
         // initialise an empty Powerup list - for final destroy in grand finale (if I implement one)
         currentPowerups = new List<PowerUp>();
 
-        // get player start position
+        // set player start position
         theStartPosition = thePlayer.transform;
     }
 
@@ -364,7 +420,30 @@ public class GameplayController : MonoBehaviour
     {
         // called to start health countdown
         // now start health countdown so Player always needs to collect powerups!
-        InvokeRepeating("DecayPlayerHealth", 3f, 3f); // in 3 secs time, start losing some health every 3 secs!
+
+        if (bGameStarted && !bGameReStarted)
+        {
+            // only do this once, as otherwise multiple ones running after every restart!
+            InvokeRepeating("DecayPlayerHealth", 3f, 3f); // in 3 secs time, start losing some health every 3 secs!
+        }
+    }
+
+   void Awake()
+   {
+        // get high score & instruction panel scripts
+        theHighScoresControllerScript = theHighScoresPanel.GetComponentInChildren<HighScoreTableController>();
+
+        if (theHighScoresControllerScript == null)
+        {
+            Debug.Log("Couldn't find Highscore script from within Ganeplay controller");
+        }
+
+        /*theInstructionPanelScript = theInstructionPanel.GetComponent<InstructionPanelController>();
+
+        if (theInstructionPanelScript == null)
+        {
+            Debug.Log("Couldn't find Instruction Panel script from within Gameplay controller");
+        }*/
     }
 
     // Update is called once per frame
@@ -372,11 +451,23 @@ public class GameplayController : MonoBehaviour
     {
         if (!bGameStarted)
         {
-            // Start the game when user is ready
-            if (Input.GetKeyDown(KeyCode.S))
+            // Start the game when user is ready and another control panel (high scores/credits/instructions) isn't in use by player
+            if (Input.GetKeyUp(KeyCode.S) && !thePlayer.GetComponent<PlayerController>().IsAnotherPanelInControl())
             {
-                // Start game
-                StartGame(true);
+                // Hide highscores panel
+                theHighScoresControllerScript.ShowHighScoresPanel(false); // Do not place this after StartGame()
+
+                StartGame(true); // start game
+
+                if (!restartReposition)
+                {
+                    // reset to original position from GUI editor
+                    theStartPosition.position = new UnityEngine.Vector3(36f, 0.1f, -75f);
+                    transform.rotation = UnityEngine.Quaternion.Euler(0f,0f,0f);
+                    transform.Rotate(transform.rotation.eulerAngles);
+                    transform.Translate(theStartPosition.position);
+                    //restartReposition = true;
+                }
             }
         }
     }
@@ -386,7 +477,7 @@ public class GameplayController : MonoBehaviour
         // update the score and display on the text panel
         playerScore += scoreChange;
 
-        if (playerScore == 0)
+        if (playerScore <= 0)
         {
             playerScore = 0;
         }
@@ -583,11 +674,6 @@ public class GameplayController : MonoBehaviour
         return playerHealth;
     }
 
-    void SetupHighScores()
-    {
-        // populate highscores and names list later
-        highScores = new int[10];
-    }
     public void SetPowerUpEntry(GameObject aPowerUp, float theTimeCreated)
     {
         // add a power up object to the array (set by spawn manager)

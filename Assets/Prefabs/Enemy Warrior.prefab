@@ -906,7 +906,7 @@ Transform:
   m_GameObject: {fileID: 4713487693815164066}
   m_LocalRotation: {x: 0, y: 1, z: 0, w: 0}
   m_LocalPosition: {x: 0, y: 0.15, z: 0}
-  m_LocalScale: {x: 1.6, y: 1.6, z: 1.6}
+  m_LocalScale: {x: 1.3, y: 1.3, z: 1.3}
   m_Children:
   - {fileID: 6179122993988576778}
   - {fileID: 8710652848091255794}
@@ -960,8 +960,8 @@ BoxCollider:
   m_IsTrigger: 0
   m_Enabled: 1
   serializedVersion: 2
-  m_Size: {x: 1.4523515, y: 1.8110158, z: 0.5119857}
-  m_Center: {x: 0.0043359916, y: 0.9097663, z: -0.013297997}
+  m_Size: {x: 1.2679782, y: 1.8110158, z: 0.8150637}
+  m_Center: {x: 0.010650112, y: 0.90976644, z: 0.13824123}
 --- !u!195 &6544302473744267855
 NavMeshAgent:
   m_ObjectHideFlags: 0
@@ -969,7 +969,7 @@ NavMeshAgent:
   m_PrefabInstance: {fileID: 0}
   m_PrefabAsset: {fileID: 0}
   m_GameObject: {fileID: 4713487693815164066}
-  m_Enabled: 0
+  m_Enabled: 1
   m_AgentTypeID: 0
   m_Radius: 0.5
   m_Speed: 3.5

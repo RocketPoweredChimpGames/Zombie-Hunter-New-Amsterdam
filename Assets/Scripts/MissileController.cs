@@ -66,17 +66,25 @@ public class MissileController : MonoBehaviour
             collision.gameObject.CompareTag("Boundary Bottom") ||
             collision.gameObject.CompareTag("Power Up") ||
             collision.gameObject.CompareTag("Enemy Warrior") ||
+            collision.gameObject.CompareTag("Beut Tree") ||
+            collision.gameObject.CompareTag("DanpungMix Tree") ||
             collision.gameObject.CompareTag("Jumok Tree") ||
             collision.gameObject.CompareTag("Newngsowha Tree") ||
-            collision.gameObject.CompareTag("DanpungMix Tree") ||
+            collision.gameObject.CompareTag("Neuti Tree") ||
+            collision.gameObject.CompareTag("Sonamoo Tree") ||
             collision.gameObject.CompareTag("Black Car") ||
+            collision.gameObject.CompareTag("Tocus") ||
+            collision.gameObject.CompareTag("FOCE08") ||
             collision.gameObject.CompareTag("Table") ||
             collision.gameObject.CompareTag("Umbrella") ||
             collision.gameObject.CompareTag("Concrete") ||
             collision.gameObject.CompareTag("Ponds") ||
             collision.gameObject.CompareTag("Grassy Areas") ||
             collision.gameObject.CompareTag("Building") ||
-            collision.gameObject.CompareTag("Skyscraper"))
+            collision.gameObject.CompareTag("Skyscraper") ||
+            collision.gameObject.CompareTag("Stone Fence")
+            
+            )
         {
             // missile has landed (or hit end barriers/ landed on a powerup/ trees
             // or even bounced on a zombies head), so play bomb explosion at current position
@@ -137,7 +145,7 @@ public class MissileController : MonoBehaviour
         //  set it dead if not destroyed already (added due to timing issues) at end of animation clip
         if (theBombFlames != null)
         {
-            Destroy(gameObject, theBombFlames.GetComponentInChildren<ParticleSystem>().duration);
+            Destroy(gameObject, theBombFlames.GetComponentInChildren<ParticleSystem>().main.duration);
         }
         else
         {
