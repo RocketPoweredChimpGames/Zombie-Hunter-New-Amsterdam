@@ -20,7 +20,8 @@ public class PlayerController : MonoBehaviour
     public  GameObject   theFlameThrower = null;  // flamethrower effect for gun
 
     // spot light
-    private GameObject theHeadLamp = null; // player headlamp
+    private GameObject   theHeadLamp = null;  // player headlamp
+    private GameObject[] theStreetlightBulbs; // street lighting
 
     // buttons
     private Button smartBombButton;     // smart bomb indicator button
@@ -94,6 +95,14 @@ public class PlayerController : MonoBehaviour
             smartBombButton.GetComponentInChildren<Text>().text = "Smart Bomb";
             smartBombButton.interactable = true;
             smartBombAvailable = true;
+        }
+
+        // turn off streetlight light bulbs!
+        theStreetlightBulbs = GameObject.FindGameObjectsWithTag("Light Bulb");
+
+        foreach (GameObject bulb in theStreetlightBulbs)
+        {
+            bulb.SetActive(false);
         }
 
         // get game manager
@@ -209,10 +218,7 @@ public class PlayerController : MonoBehaviour
     {
         // allow player input if game started or restarted and game is not over, but not if a control panel
         // like instructions / credits / highscores panel is currently open and in use
-        //if ( theGameControllerScript.HasGameStarted()   && !theGameControllerScript.IsGameOver() && !bAnotherPanelInControl ||
-        //    (theGameControllerScript.HasGameRestarted() && !theGameControllerScript.IsGameOver() && !bAnotherPanelInControl))
-
-        if ( (theGameControllerScript.HasGameStarted() || theGameControllerScript.HasGameRestarted()) && !theGameControllerScript.IsGameOver() && !bAnotherPanelInControl)
+        if ( theGameControllerScript.HasGameStarted() && !theGameControllerScript.IsGameOver() && !bAnotherPanelInControl)
         {
             // game has started/restarted and isn't over yet
 
@@ -465,7 +471,7 @@ public class PlayerController : MonoBehaviour
             // clear any old message
             //theGameControllerScript.PostStatusMessage(" ");
 
-            if (Input.GetKeyDown(KeyCode.R))
+            /*if (Input.GetKeyDown(KeyCode.R))
             {
                 // restart game - keeping high scores etc this time
 
@@ -479,12 +485,22 @@ public class PlayerController : MonoBehaviour
                 // restart game - no pressing R in High scores panel should now just reset score health info and pass to
                 // instruction panel where pressing S now restarts game....
                 theGameControllerScript.RestartGame();
-            }
+            }*/
         }
     }
 
+    public bool IsNightMode()
+    {
+        // needed to turn on day mode if ending and entering a password in HighscoreController
+        if (UnityEngine.RenderSettings.skybox == nightSkyBox)
+        {
+            return true;
+        }
+        else return false;
+    }
+
     // Toggle Night Mode
-    void ToggleNightMode()
+    public void ToggleNightMode()
     {
         GameObject theSceneLight = GameObject.FindGameObjectWithTag("Main Lighting");
         Light theLight = theSceneLight.GetComponent<Light>();
@@ -499,6 +515,9 @@ public class PlayerController : MonoBehaviour
             {
                 // set intensity to dark
                 theLight.intensity = 0f;
+
+                UnityEngine.RenderSettings.ambientIntensity = 0.25f; // Will make it dark
+                UnityEngine.RenderSettings.reflectionIntensity = 0.25f; // will make it dark
             }
 
             bNightModeOn = !bNightModeOn;
@@ -516,6 +535,12 @@ public class PlayerController : MonoBehaviour
                 aCandle.GetComponentInChildren<ParticleSystem>().Play();
             }
 
+            // turn on street lighting
+            foreach (GameObject bulb in theStreetlightBulbs)
+            {
+                bulb.SetActive(true);
+            }
+
             // Turn on Headlamp
             theHeadLamp.SetActive(true);
         }
@@ -523,6 +548,15 @@ public class PlayerController : MonoBehaviour
         {
             // switch to daytime mode
             bNightModeOn = !bNightModeOn;
+
+            UnityEngine.RenderSettings.ambientIntensity    = 1f; // Will make it light
+            UnityEngine.RenderSettings.reflectionIntensity = 1f; // will make it light
+
+            // turn off street lighting
+            foreach (GameObject bulb in theStreetlightBulbs)
+            {
+                bulb.SetActive(false);
+            }
 
             UnityEngine.RenderSettings.skybox = daySkyBox;
             theLight.intensity = 1f;

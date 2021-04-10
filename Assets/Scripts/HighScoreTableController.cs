@@ -1,4 +1,5 @@
-﻿using System.Collections;
+﻿using System;
+using System.Collections;
 using System.Collections.Generic;
 using TMPro;
 using UnityEditorInternal;
@@ -14,6 +15,7 @@ public class HighScoreTableController : MonoBehaviour
     private GameObject theInstructionPanel = null;   // the instructions panel
     private GameObject theScoreLivesPanel  = null;   // player scoring panel
     private GameObject theReturnString     = null;   // disable display of string due to now including a highscore table!
+    private GameObject theGameController   = null;   // the gameplay controller
 
     private Transform entryContainer;                    // container in GUI which holds high score entry templates / is used for position purposes
     private Transform entryTemplate;                     // high score entry template (for each highscore entry (position, score, name))
@@ -36,7 +38,9 @@ public class HighScoreTableController : MonoBehaviour
     private bool bWaitingForUsernameInput  = false;  // should we only now process input from username field on GUI
 
     public TMP_InputField UsernameInputField;        // input field on gui for username entry (dragged in on editor)
-    
+
+
+    public AudioClip  theInstructionPanelSong;       // need to play instruction panel song again after exitting here
 
     // HighscoreEntry class represents an individual high score entry
     [System.Serializable]
@@ -66,13 +70,14 @@ public class HighScoreTableController : MonoBehaviour
         // without high score table stuff
         theReturnString = GameObject.FindGameObjectWithTag("HighScoreReturn");
 
-        // find display objects not needed to be seen yet
+        // find objects not needed to be seen yet / needed for later use
         confirmDeleteText   = GameObject.Find("Confirm Delete Text");
         confirmDeleteBack   = GameObject.Find("Confirm Delete Background");
         askHiscoreDelete    = GameObject.Find("Ask Delete Text");
         enterNameText       = GameObject.Find("Enter Username Text");
         enterNameBackground = GameObject.Find("Enter Username Background");
-        
+        theGameController   = GameObject.Find("GameplayController");
+
         // and turn them all off, username input is turned off in Start() as need to add listener there
         if (confirmDeleteText != null)
         {
@@ -356,22 +361,31 @@ public class HighScoreTableController : MonoBehaviour
                 // trim it down
                 toPass = toPass.Substring(0, 12);
             }
-            
+
             AddHighscoreEntry(playerScore, toPass);
-            Debug.Log("Text has been entered");
         }
         else if (theName.text.Length == 0)
         {
-            Debug.Log("Main Input Empty");
+            AddHighscoreEntry(playerScore, "Anonymous");
         }
 
         // hide username input stuff now
         enterNameText.gameObject.SetActive(false);
         enterNameBackground.SetActive(false);
         UsernameInputField.gameObject.SetActive(false);
+        
+        // reset to day mode if we are in night mode at game end 
+        if (thePlayer.GetComponent<PlayerController>().IsNightMode())
+        {
+            // set to day mode
+            thePlayer.GetComponent<PlayerController>().ToggleNightMode();
+        }
 
-        // allow other inputs on this panel again
+        // now allow other inputs on this panel again
         bWaitingForUsernameInput = false;
+
+        // reset entry field
+        UsernameInputField.gameObject.GetComponentInChildren<TMP_InputField>().text = "            "; // 12 spaces
     }
 
     private void DeleteAllHighScores()
@@ -436,7 +450,7 @@ public class HighScoreTableController : MonoBehaviour
         // ok it's not null or spaces - so get score as int
         int scoreAsInt = int.Parse(scoreString); // convert to an integer
 
-        if (thePlayerScore > scoreAsInt)
+        if (thePlayerScore > scoreAsInt && thePlayerScore >0)
         {
             // ok its high enough to go in as higher than AN entry in there!
             return true;
@@ -445,6 +459,14 @@ public class HighScoreTableController : MonoBehaviour
         {
             return false;
         }
+    }
+
+    public void SetFocusToEntryField()
+    {
+        // set focus of cursor to entry field
+        UsernameInputField.Select();
+        UsernameInputField.ActivateInputField();
+        GameObject.Find("Crosshair Target").SetActive(false);
     }
 
     public void ShowHighScoresPanel(bool showIt)
@@ -459,20 +481,6 @@ public class HighScoreTableController : MonoBehaviour
 
         gameObject.SetActive(showIt);
         entryTemplate.gameObject.SetActive(showIt);
-    }
-
-    public void CheckHighScoresExist()
-    {
-        // load high scores from PlayerPrefs as a JSON string
-        if (PlayerPrefs.HasKey("highscoreTable"))
-        {
-            // highscores exist - so 
-            Debug.Log("Found highscores table in Playerprefs");
-        }
-        else
-        {
-            // probably need to create a default entry?
-        }
     }
 
     // Start is called before the first frame update
@@ -504,7 +512,6 @@ public class HighScoreTableController : MonoBehaviour
         else
         {
             // find camera to be enabled again later
-            //theMainCamera = gameObject.GetComponentInChildren<Camera>();
             theMainCamera = thePlayer.GetComponentInChildren<Camera>();
 
             if (theMainCamera == null)
@@ -538,6 +545,9 @@ public class HighScoreTableController : MonoBehaviour
                 // enable Instructions panel, and disable this one
                 askHiscoreDelete.SetActive(false);
 
+                // ok we have done everything we need to here, so relinquish control and
+                // re-activate the Instructions Panel for a potential start game
+                thePlayer.GetComponent<PlayerController>().SetAnotherPanelInControl(false);
                 ActivateInstructionsPanel();
             }
 
@@ -585,14 +595,30 @@ public class HighScoreTableController : MonoBehaviour
             // hide it
             theReturnString.GetComponentInChildren<TMP_Text>().enabled = false;
         }
-
+        
         // re-enable user input in Player controller
         thePlayer.GetComponent<PlayerController>().SetAnotherPanelInControl(false);
 
-        theScoreLivesPanel.gameObject.SetActive(false);
-        gameObject.SetActive(        false);
-        theInstructionPanel.SetActive(true);
+        gameObject.SetActive(false);                    // turn off highscore panel
+        theInstructionPanel.SetActive(true);            // set instruction panel active again
+        theMainCamera.gameObject.SetActive(true);       // turn on main camera
+        theScoreLivesPanel.gameObject.SetActive(false); // turn off score lives panel
 
-        theMainCamera.gameObject.SetActive(true);
+        // enable audio again & play main instructions panel song
+        AudioListener.pause = false;
+        
+        AudioSource theAudioSource = GetComponent<AudioSource>();
+
+        if (theGameController != null)
+        {
+            GameplayController theScript = theGameController.GetComponent<GameplayController>();
+            theScript.PlayCountdown(false);
+            theScript.PlayCriticalCountdown(false);
+        }
+
+        theAudioSource.clip = theInstructionPanelSong;
+        theAudioSource.time = 0f;
+        theAudioSource.volume = 46;
+        theAudioSource.Play();
     }
 }

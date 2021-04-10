@@ -268,7 +268,7 @@ public class EnemyController : MonoBehaviour
 
             if ((Vector3.Distance(thePlayer.transform.position, transform.position) <= 2) && !attackingPlayer)
             {
-                //Debug.Log("attacking player!");
+                Debug.Log("attacking player! - distance between" + Vector3.Distance(thePlayer.transform.position, transform.position));
 
                 theAnimator.SetBool("b_Attack", true);
                 startAttackTime = Time.realtimeSinceStartup;
@@ -287,7 +287,7 @@ public class EnemyController : MonoBehaviour
                 }
             }
 
-            if (Vector3.Distance(thePlayer.transform.position, transform.position) > 2 && attackingPlayer)
+            if (Vector3.Distance(thePlayer.transform.position, transform.position) > 2.1 && attackingPlayer)
             {
                 // no longer in attack range of player
                 theAnimator.SetFloat("f_Speed", 2.1f);
@@ -418,7 +418,7 @@ public class EnemyController : MonoBehaviour
         //if (collision.other.CompareTag("Power Up"))
         //if (collision.gameObject.CompareTag("Power Up"))
         //{
-            // hit by a warrior - destroy it
+            // hit by a warrior
            // Debug.Log("Warrior hit Powerup!\n "); // + collision.other.gameObject.tag);
 
             // increase our energy here if searching for energy?????

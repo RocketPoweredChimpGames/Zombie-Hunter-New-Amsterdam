@@ -109,8 +109,27 @@ public class InstructionPanelController : MonoBehaviour
     {
         if (Input.GetKeyDown(KeyCode.S) && !thePlayer.GetComponent<PlayerController>().IsAnotherPanelInControl())
         {
+            // check whether we should reenable health countdown
+            /*if (theGameControllerScript.HasHealthDecayBeenStarted())
+            {
+                // we must have Pressed 'S' AFTER finishing a game, and game end stopped coroutine for health decay
+                // so need to allow it to be restarted on next Update in Game Controller
+                theGameController.GetComponent<GameplayController>().ReEnableHealthDecay();
+            }*/
+
             // start the game, hide demo characters, enable player score panel, disable this one
-            ActivatePlayerPanel(); theGameControllerScript.StartGame(true);
+            // and any other currently on screen
+            ActivatePlayerPanel();
+
+            /*if (theGameControllerScript.IsGameOver())
+            {
+                theGameControllerScript.RestartGame();
+            }
+            else
+            {*/
+                theGameControllerScript.SetGameDefaults();
+                theGameControllerScript.StartGame(true);
+            //}
         }
 
         if (Input.GetKeyDown(KeyCode.C))
@@ -128,17 +147,21 @@ public class InstructionPanelController : MonoBehaviour
 
     void ActivatePlayerPanel() 
     {
-        // disable this panel and credits replay panel
+        // disable instructions panel, credits replay panel, and high score panel
         gameObject.SetActive(false);
+
         theCreditsReplayPanel.SetActive(false);
-
-        // re-enable user input in Player controller first
-        thePlayer.GetComponent<PlayerController>().SetAnotherPanelInControl(false);
-
-        // turn on player panel, activate player and camera
+        theHighScoreScript.ShowHighScoresPanel(false);
+        
+        // turn on player panel, activate player
         thePlayerPanel.SetActive(true);
         thePlayer.SetActive(true);
         theMainCamera.gameObject.SetActive(true);
+
+        // re-enable user input in Player controller first
+        thePlayer.GetComponent<PlayerController>().SetAnotherPanelInControl(false);
+        
+        
     }
 
     // Show the Credits Panel

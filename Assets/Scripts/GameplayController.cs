@@ -3,7 +3,9 @@ using System.Collections;
 using System.Collections.Generic;
 using System.Linq;
 using System.Numerics;
+using System.Runtime.InteropServices.WindowsRuntime;
 using TMPro;
+using UnityEditor;
 using UnityEngine;
 using UnityEngine.Analytics;
 using UnityEngine.UI;
@@ -36,6 +38,7 @@ public class GameplayController : MonoBehaviour
     public GameObject   theInstructionPanel;    // displayed prior to game start with instructions & animations of alien and player
     public GameObject   theCreditsReplayPanel;  // credits and replay panel at end of game
     public GameObject   theHighScoresPanel;     // top ten high scores panel
+    private GameObject  theCrosshairs;          // target for flame / aiming
 
     private HighScoreTableController   theHighScoresControllerScript; // high scores controller script
     //private InstructionPanelController theInstructionPanelScript;     // instruction panel controller script
@@ -73,13 +76,11 @@ public class GameplayController : MonoBehaviour
     public  bool playingCountdown = false;  // are we playing countdown noise
 
     // player variables
-    private int maxPowerUps  = 200;         // maximum powerups on screen at a time
-    private int playerLives  = 3;           // number of player lives
-    public  int playerHealth = 100;         // initial full health
-    private int playerScore  = 0;           // initial player score
-    private int highScore    = 0;           // put in a file later to keep
-    
-    //private int[] highScores;               // top ten high scores - probably read them from a serialised JSON file later on
+    private int maxPowerUps       = 200;    // maximum powerups on screen at a time
+    private int playerLives       = 3;      // number of player lives
+    public  int playerHealth      = 100;    // initial full health
+    private int playerScore       = 0;      // initial player score
+    private int highScore         = 0;      // put in a file later to keep
     
     private int enemySpeedSetting = 2;      // set by Player to tell enemies speed to go at (0- slow, 1-medium, 2-normal)
 
@@ -94,17 +95,10 @@ public class GameplayController : MonoBehaviour
 
     public void ShowHighScores()
     {
-        // tell highscore controller to show high scores
+        // get highscore controller to show high scores
         theHighScoresControllerScript.ShowHighScoresPanel(true);
     }
-
-    private void SaveHighScores(int playerScore, string playerName)
-    {
-        // save the high score entry to PlayerPrefs as a JSON string
-    }
-
-
-    
+           
     public bool HasGameStarted()
     {
         // returns whether game has started or not
@@ -117,35 +111,57 @@ public class GameplayController : MonoBehaviour
         return bGameReStarted;
     }
 
+    // StartGame() ALWAYS starts the countdown, the Coroutine is always running (and checks this flag), 
+    // end game sets flag to stop countdown, so initial value must always be set to true here!
+    public bool bHealthCountdownPaused = true; // flag checked by HealthCountdown Coroutine periodically
+
+    public void SetHealthCountdownPaused(bool bStart)
+    {
+        // flag checked by health decay coroutine every few seconds
+        bHealthCountdownPaused = bStart;
+    }
+
+    public bool IsHealthCountdownPaused()
+    {
+        // returns status flag - true if it is currently paused
+        return bHealthCountdownPaused;
+    }
+
     public void StartGame(bool bStart)
     {
-        if (bStart == true)
+        if (bStart)
         {
-            // setting bGameStarted will start game spawning on next update() in SpawnController, and enable Player controls
-            // in player controller
-            bGameOver       = false;
-            bGameStarted    = bStart; // start game
-            enemyWaveNumber = 1;      // first wave
+            // starts Spawnmanager spawning on next update(), and also
+            // enables Player controls in player controller
 
-            // start animations and music again as could have come from an end game situation now
-            Time.timeScale = 1f;
-            AudioListener.pause = false;
+            //bGameOver       = false; // not game over
+            bGameStarted    = true;  // start game
+            //enemyWaveNumber = 1;     // first wave
 
-            // set with high score read from PlayerPrefs elsewhere
+            // re-start animations and music again as could have come from an end game situation
+            //Time.timeScale = 1f;           // allow animations
+            //AudioListener.pause = false;   // allow audio
+
+            // set with high score read from PlayerPrefs
             highScore = theHighScoresControllerScript.GetHighScore();
             HighScore.SetText(highScore.ToString());
 
-            PauseGame(false); // turn off pause
+            //PauseGame(false); // turn off game pause just in case
 
             // update player display
-            StartWaveNumber(enemyWaveNumber);
-            EnemiesKilledTotal.SetText(totalEnemiesKilled.ToString());
+            //StartWaveNumber(enemyWaveNumber);
+            //EnemiesKilledTotal.SetText(totalEnemiesKilled.ToString());
 
-            // start routine to decay health periodically
-            StartHealthCountdown();
+            // starts (or restarts) routine which periodically decays health (every 3s)
+            if (IsHealthCountdownPaused())
+            {
+                // countdown currently paused (always at 1st start/ and at restart situation), so enable it again
+                SetHealthCountdownPaused(false);
+                thePlayer.GetComponent<PlayerController>().SetAnotherPanelInControl(false);
+            }
 
             // set day box initially
-            UnityEngine.RenderSettings.skybox = theDaySkybox;
+            //UnityEngine.RenderSettings.skybox = theDaySkybox;
         }
     }
 
@@ -180,12 +196,15 @@ public class GameplayController : MonoBehaviour
         }
     }
 
-    private bool addedHighScore = false;
+    //private bool addedHighScore = false;
 
     public void SetGameOver()
     {
         // display game over on screen, accepts any high score entry before
         bGameOver = true;
+
+        // stop the decay health co-routine from doing anything
+        SetHealthCountdownPaused(true); // flag checked inside coroutine
 
         GameObject[] theWarriors = GameObject.FindGameObjectsWithTag("Enemy Warrior Base Object");
         GameObject[] thePowerups = GameObject.FindGameObjectsWithTag("Power Up");
@@ -219,17 +238,26 @@ public class GameplayController : MonoBehaviour
         Time.timeScale      = 0f;
         AudioListener.pause = true;
 
-        // do a function which will check highscore against high score table
-        // and if higher will pass to showhighscore function to get input
-        // else just show high score table and option to return to menu
-        // and also give option to delete existing entries (but maybe from main menu entry not here)
-        ShowHighScores(); // change to CheckIfInHighscores(playerScore) which calls say showhighscores(playerScore, true); to update it
+        // Show the highscores table
+        ShowHighScores();
+        
+        // Disable Playercontroller inputs while in highscore table
+        thePlayer.GetComponent<PlayerController>().SetAnotherPanelInControl(true); // disable inputs in the player controller
 
-        if (theHighScoresControllerScript.GoodEnoughForHighscores(playerScore))
+        if (playerScore >0 && theHighScoresControllerScript.GoodEnoughForHighscores(playerScore))
         {
-            //  add it to high scores table for now to test
-            addedHighScore = true;
-            theHighScoresControllerScript.AddHighscoreEntryWithName(playerScore);
+            //  Add score to table if high enough to go in
+            theHighScoresControllerScript.AddHighscoreEntryWithName(playerScore);      // opens highscore name entry panel
+            theHighScoresControllerScript.SetFocusToEntryField();
+        }
+        else 
+        {
+            // no score - high score panel will return us to Instruction panel when user says so
+            if (GameObject.Find("Player").GetComponent<PlayerController>().IsNightMode())
+            {
+                // we are in night mode - so return to day mode as game over for now
+                GameObject.Find("Player").GetComponent<PlayerController>().ToggleNightMode();
+            }
         }
     }
 
@@ -284,58 +312,59 @@ public class GameplayController : MonoBehaviour
         StatusDisplay.SetText(dispString);
     }
 
-    public void RestartGame()
+    public void SetGameDefaults()
     {
-        // restart game (NOW goes back to main instructions panel now) when finished and user given option to play again
-        // resets score/wave and other variables, resets day box, etc.
-        enemyWaveNumber       = 1;     // set initial wave
+        // Set score/wave and other variables, resets day box, etc.
+        enemyWaveNumber       = 1;     // set to initial wave
         totalEnemiesKilled    = 0;     // no enemies killed
         enemiesKilledThisWave = 0;     // nothing killed this wave
-        bGameReStarted        = true;  // for high score display later
-        bGamePaused           = false; // not paused
-        bGameOver             = false; // no longer game over state
+        bGameStarted          = true;  // allows Player controller to call StartGame again
+        bGameOver             = false; // allow player inpits again
+        bGamePaused           = false; // game not paused
         playerHealth          = 100;   // reset health
         playerScore           = 0;     // reset score
         playerLives           = 3;     // reset lives
 
-        addedHighScore        = false; // allow high score to be added at end again
-
-        /* // start animations and music again
-        Time.timeScale = 1f;
-        AudioListener.pause = false; */
-
         // reset contents of display fields
-        EnemyWaveNum.SetText(enemyWaveNumber.ToString());
-        EnemiesRemaining.SetText(maxEnemiesPerWave.ToString());
+        EnemyWaveNum.SetText(      enemyWaveNumber.ToString());
+        EnemiesRemaining.SetText(  maxEnemiesPerWave.ToString());
         EnemiesKilledTotal.SetText(totalEnemiesKilled.ToString());
-        LivesPlayer.SetText(playerLives.ToString());
-        PlayerHealth.SetText(playerHealth.ToString());
-        ScorePlayer.SetText(playerScore.ToString());
+        LivesPlayer.SetText(       playerLives.ToString());
+        PlayerHealth.SetText(      playerHealth.ToString());
+        ScorePlayer.SetText(       playerScore.ToString());
 
-        // initialise status message box again
+        // initialise status message box
         string blank = " ";
         StatusDisplay.text = blank.ToString();
 
-        // turn off any possibly playing sounds
+        // turn off any possibly playing sounds (as could be from a restart now)
         PlayCountdown(false);
         PlayCriticalCountdown(false);
 
         // re-enable smart bomb button
         thePlayer.GetComponent<PlayerController>().SmartBombReset(); // reset smart bomb availability
 
-        // don't start game from here now - just go to instructions panel
-        // bGameStarted = true; // causes start of spawning/re-enables player input/starts health countdown
+        // re-enable crosshair target in case showing highscore entry field disabled it
+        if (theCrosshairs != null)
+        {
+            theCrosshairs.SetActive(true);
+        }
 
         // reposition player to start position
         theStartPosition.position = new UnityEngine.Vector3(36f, 0.1f, -75f);
         transform.Translate(theStartPosition.position);
 
-        // Hide highscores panel
+        // Hide highscores panel (as we may have come from end game before)
         theHighScoresControllerScript.ShowHighScoresPanel(false); // Do not place this after StartGame()
         
-        // turn on instruction panel, sound, and start camera
-        theInstructionPanel.SetActive(true);
-        AudioListener.pause = false;
+        // allow input in player controller
+        thePlayer.GetComponent<PlayerController>().SetAnotherPanelInControl(false);
+        
+        AudioListener.pause = false; // enable sounds
+        Time.timeScale = 1f; // reset time to normal
+
+        // set to day Skybox initially
+        UnityEngine.RenderSettings.skybox = theDaySkybox;
     }
 
     // no longer needed as enemies no longer do searches for energy
@@ -405,6 +434,11 @@ public class GameplayController : MonoBehaviour
     {
         // do any setup here, initalise scores, display instructions, wait for start, then tell Spawnmanager to start   
         // spawning objects when user starts game from Playercontroller
+        bGameOver = false;
+
+        // set pause flag & start health countdown routine as even if not in game should be running
+        SetHealthCountdownPaused(true);
+        InvokeRepeating("DecayPlayerHealth", 3f, 3f);
 
         // get audio source component
         theAudioSource = GetComponent<AudioSource>();
@@ -416,18 +450,6 @@ public class GameplayController : MonoBehaviour
         theStartPosition = thePlayer.transform;
     }
 
-    public void StartHealthCountdown()
-    {
-        // called to start health countdown
-        // now start health countdown so Player always needs to collect powerups!
-
-        if (bGameStarted && !bGameReStarted)
-        {
-            // only do this once, as otherwise multiple ones running after every restart!
-            InvokeRepeating("DecayPlayerHealth", 3f, 3f); // in 3 secs time, start losing some health every 3 secs!
-        }
-    }
-
    void Awake()
    {
         // get high score & instruction panel scripts
@@ -435,15 +457,11 @@ public class GameplayController : MonoBehaviour
 
         if (theHighScoresControllerScript == null)
         {
-            Debug.Log("Couldn't find Highscore script from within Ganeplay controller");
+            Debug.Log("Couldn't find Highscore script from within Gameplay controller");
         }
 
-        /*theInstructionPanelScript = theInstructionPanel.GetComponent<InstructionPanelController>();
-
-        if (theInstructionPanelScript == null)
-        {
-            Debug.Log("Couldn't find Instruction Panel script from within Gameplay controller");
-        }*/
+        // find crosshairs
+        theCrosshairs = GameObject.FindGameObjectWithTag("Crosshair Target");
     }
 
     // Update is called once per frame
@@ -457,7 +475,8 @@ public class GameplayController : MonoBehaviour
                 // Hide highscores panel
                 theHighScoresControllerScript.ShowHighScoresPanel(false); // Do not place this after StartGame()
 
-                StartGame(true); // start game
+               SetGameDefaults(); // resets all game defaults inc time & sound to normal
+               StartGame(true); // start game
 
                 if (!restartReposition)
                 {
@@ -466,7 +485,6 @@ public class GameplayController : MonoBehaviour
                     transform.rotation = UnityEngine.Quaternion.Euler(0f,0f,0f);
                     transform.Rotate(transform.rotation.eulerAngles);
                     transform.Translate(theStartPosition.position);
-                    //restartReposition = true;
                 }
             }
         }
@@ -494,8 +512,16 @@ public class GameplayController : MonoBehaviour
 
     void DecayPlayerHealth()
     {
-        // just decays health by a point
-        UpdatePlayerHealth(-1);
+        // only decay health if NOT game over / NOT paused as otherwise
+        // highscore entry dialog could reappear at game end
+        if (!bGameOver || !bGamePaused)
+        {
+            if (!IsHealthCountdownPaused())
+            {
+                // only decays health if NOT paused or game over
+                UpdatePlayerHealth(-1);
+            }
+        }
     }
 
     public void UpdatePlayerHealth(int healthPoints)
@@ -547,7 +573,7 @@ public class GameplayController : MonoBehaviour
             PlayCriticalCountdown(true); // play critical noise
         }
 
-        if (playerHealth <= 0)
+        if (playerHealth <= 0 && !bGameOver)
         {
             // player has died (poor player!)
             playerHealth = 0;
@@ -558,7 +584,7 @@ public class GameplayController : MonoBehaviour
         PlayerHealth.text = playerHealth.ToString();
     }
 
-    void PlayCountdown(bool playIt)
+    public void PlayCountdown(bool playIt)
     {
         // play health countdown music
         if (playIt == true && !playingCountdown)
@@ -582,7 +608,7 @@ public class GameplayController : MonoBehaviour
         }
     }
 
-    void PlayCriticalCountdown(bool playIt)
+    public void PlayCriticalCountdown(bool playIt)
     {
         // player is close to death, play critical countdown music
 

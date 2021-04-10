@@ -5,7 +5,7 @@ using UnityEngine;
 public class EnemySeparation : MonoBehaviour
 {
     GameObject[] enemyObjects;
-    public float spaceBetween = 2f;
+    public float spaceBetween = 1f;
 
     // Start is called before the first frame update
     void Start()
