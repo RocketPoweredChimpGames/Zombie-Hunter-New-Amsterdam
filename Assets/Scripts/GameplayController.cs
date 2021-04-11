@@ -7,6 +7,7 @@ using System.Runtime.InteropServices.WindowsRuntime;
 using TMPro;
 using UnityEditor;
 using UnityEngine;
+using UnityEngine.Audio;
 using UnityEngine.Analytics;
 using UnityEngine.UI;
 
@@ -47,6 +48,8 @@ public class GameplayController : MonoBehaviour
     public  AudioClip   countdownNoise;         // played when less than 60% (or whatever changed to) health
     public  AudioClip   criticalCountdownNoise; // played when 10% or under health 
     public  AudioClip   lifeLostNoise;          // life lost noise
+    public  AudioClip   youReallyWannaGo;       // quit game ask
+    public AudioClip    goodbye;                // quit game confirmed
 
     // spoken audio clips
     public  AudioClip   gameOver;               // game over voice
@@ -57,7 +60,11 @@ public class GameplayController : MonoBehaviour
     public AudioClip    thatsNotGonnaDoIt;      // not in high score or zero score voice
     //public AudioClip  highScoreBeaten;          // beaten high score / cheering
 
+    // audio components etc
     private AudioSource theAudioSource;         // audio source component
+    private AudioMixer  theMixer;               // the audio mixer to output sound from listener to
+    private string      _outputMixer;           // holds mixer struct
+    
 
     // all these text fields are associated by dragging field entries into gameplay controller entries in gui editor
     public TMP_Text     ScorePlayer;            // players score
@@ -153,14 +160,30 @@ public class GameplayController : MonoBehaviour
                 thePlayer.GetComponent<PlayerController>().SetAnotherPanelInControl(false);
             }
 
-            // play game start voice
-            AudioListener.pause   = false; // enable audio (could have been disabled at end game)
+            // play 'here we go' game start voice
+            AudioListener.pause  = false; // re-enable audio (disabled at end of a previous game)
+
+            // increase clip vol by 5db
+            _outputMixer  = "Voice Up 5db"; // group to output the audio listener to
+            GetComponent<AudioSource>().outputAudioMixerGroup = theMixer.FindMatchingGroups(_outputMixer)[0];
             theAudioSource.clip   = hereWeGo;
             theAudioSource.PlayOneShot(theAudioSource.clip, 1f); // play it
 
-            // reset to start of main game background music clip
+            // start Coroutine to reset volume to normal level
+            StartCoroutine("ResetVolumeToNormal", hereWeGo);
+
+            // reset clip start to 30s into main game background music clip
             thePlayer.GetComponentInChildren<Camera>().GetComponent<AudioSource>().time = 30f;
         }
+    }
+
+    IEnumerator ResetVolumeToNormal(AudioClip theClip)
+    {
+        // simply yield and then increase volume to previous level
+        yield return new WaitForSeconds(theClip.length);
+
+        _outputMixer = "No Change"; // reset audio to normal
+        GetComponent<AudioSource>().outputAudioMixerGroup = theMixer.FindMatchingGroups(_outputMixer)[0];
     }
 
     public bool IsGamePaused()
@@ -201,14 +224,14 @@ public class GameplayController : MonoBehaviour
         // display game over on screen, accepts any high score entry before
         bGameOver = true;
 
-        
-
         // stop the decay health co-routine from doing anything
         SetHealthCountdownPaused(true); // flag checked inside coroutine
 
-        GameObject[] theWarriors = GameObject.FindGameObjectsWithTag("Enemy Warrior Base Object");
-        GameObject[] thePowerups = GameObject.FindGameObjectsWithTag("Power Up");
-        GameObject[] theDrones   = GameObject.FindGameObjectsWithTag("Enemy Drone");
+        GameObject[] theWarriors    = GameObject.FindGameObjectsWithTag("Enemy Warrior Base Object");
+        GameObject[] thePowerups    = GameObject.FindGameObjectsWithTag("Glowing Powerup");
+        GameObject[] thePowerLights = GameObject.FindGameObjectsWithTag("Power Up");
+        GameObject[] thePowerContainer = GameObject.FindGameObjectsWithTag("Powerup Container");
+        GameObject[] theDrones      = GameObject.FindGameObjectsWithTag("Enemy Drone");
 
         // destroy warriors
         foreach (GameObject warrior in theWarriors)
@@ -217,11 +240,11 @@ public class GameplayController : MonoBehaviour
             Destroy(warrior);
         }
 
-        // destroy powerups
-        foreach (GameObject powerUp in thePowerups)
+        // Destroy Powerup container (powerup & 6 lights each time)
+        foreach (GameObject powerLight in thePowerContainer)
         {
             // destroy them as game over
-            Destroy(powerUp);
+            Destroy(powerLight);
         }
 
         // destroy drones
@@ -233,8 +256,11 @@ public class GameplayController : MonoBehaviour
 
         string status      = "GAME OVER!";
         StatusDisplay.text = status.ToString();
-        
+
+
         // play game over voice
+        _outputMixer = "Voice Up 10db"; // increase volume of clip 10db over max
+        GetComponent<AudioSource>().outputAudioMixerGroup = theMixer.FindMatchingGroups(_outputMixer)[0];
         theAudioSource.clip = gameOver;
         theAudioSource.PlayOneShot(theAudioSource.clip, 1f); // play it
 
@@ -276,22 +302,38 @@ public class GameplayController : MonoBehaviour
         if (playerScore > 0 && theHighScoresControllerScript.GoodEnoughForHighscores(playerScore))
         {
             // plays "Winner" voice as high enough for table
+            _outputMixer = "Voice Up 5db"; // group to output this audio listener to
+
+            GetComponent<AudioSource>().outputAudioMixerGroup = theMixer.FindMatchingGroups(_outputMixer)[0];
+
             theAudioSource.clip = winner;
             theAudioSource.PlayOneShot(theAudioSource.clip, 1f); // play it
             yield return new WaitForSeconds(winner.length +1f);
+            
+            _outputMixer = "No Change"; // reset to normal
+            GetComponent<AudioSource>().outputAudioMixerGroup = theMixer.FindMatchingGroups(_outputMixer)[0];
 
-            Time.timeScale = 0f;        // stop animating
-            AudioListener.pause = true; // stop sound
+            Time.timeScale      = 0f;   // stop animating
+            AudioListener.pause = true; // stop sounds
 
             // can allow game over theme to play with an clip ignorepause or something - google it!
         }
         else
         {
-            // play not good enough voice
+            // play 'not good enough' voice, fixes low volume on this clip by using a Mixer set up in GUI
+            // set on the AudioListener
+
+            _outputMixer = "Voice Up 10db"; // group to output this audio listener to
+
+            GetComponent<AudioSource>().outputAudioMixerGroup = theMixer.FindMatchingGroups(_outputMixer)[0];
+
             theAudioSource.clip = thatsNotGonnaDoIt;
             theAudioSource.PlayOneShot(theAudioSource.clip, 1f); // play it
 
-            yield return new WaitForSeconds(thatsNotGonnaDoIt.length +1f); // add a bit extra
+            yield return new WaitForSeconds(thatsNotGonnaDoIt.length);
+
+            _outputMixer = "No Change"; // reset audio
+            GetComponent<AudioSource>().outputAudioMixerGroup = theMixer.FindMatchingGroups(_outputMixer)[0];
 
             Time.timeScale      = 0f;   // stop animating
             AudioListener.pause = true; // stop sound
@@ -403,9 +445,46 @@ public class GameplayController : MonoBehaviour
         
         // allow input in player controller
         thePlayer.GetComponent<PlayerController>().SetAnotherPanelInControl(false);
-        
+
+        // destroy any (potential) leftover objects from last game
+        GameObject[] theWarriors       = GameObject.FindGameObjectsWithTag("Enemy Warrior Base Object");
+        GameObject[] thePowerups       = GameObject.FindGameObjectsWithTag("Glowing Powerup");
+        GameObject[] thePowerLights    = GameObject.FindGameObjectsWithTag("Power Up");
+        GameObject[] thePowerContainer = GameObject.FindGameObjectsWithTag("Powerup Container");
+        GameObject[] theDrones         = GameObject.FindGameObjectsWithTag("Enemy Drone");
+        GameObject[] theMissiles       = GameObject.FindGameObjectsWithTag("Missile");
+
+        // destroy warriors
+        foreach (GameObject warrior in theWarriors)
+        {
+            // destroy them as game over
+            Destroy(warrior);
+        }
+
+        // Destroy Powerup container (powerup & 6 lights each time)
+        foreach (GameObject powerLight in thePowerContainer)
+        {
+            // destroy them as game over
+            Destroy(powerLight);
+        }
+
+        // destroy drones
+        foreach (GameObject drone in theDrones)
+        {
+            // destroy them as game over
+            Destroy(drone);
+        }
+
+        // destroy missiles
+        foreach (GameObject missile in theMissiles)
+        {
+            // destroy them as game over
+            Destroy(missile);
+        }
+
+        // Start everything
         AudioListener.pause = false; // enable sounds
-        Time.timeScale = 1f; // reset time to normal
+        Time.timeScale = 1f;         // reset time to normal time
 
         // set to day Skybox initially
         UnityEngine.RenderSettings.skybox = theDaySkybox;
@@ -484,8 +563,10 @@ public class GameplayController : MonoBehaviour
         SetHealthCountdownPaused(true);
         InvokeRepeating("DecayPlayerHealth", 3f, 3f);
 
-        // get audio source component
+        // set audio source component & mixer
         theAudioSource = GetComponent<AudioSource>();
+        theMixer       = Resources.Load("Music") as AudioMixer; // from created "Resources/Music/..." folder in heirarchy
+        _outputMixer   = "";
 
         // initialise an empty Powerup list - for final destroy in grand finale (if I implement one)
         currentPowerups = new List<PowerUp>();
@@ -532,7 +613,81 @@ public class GameplayController : MonoBehaviour
                 }
             }
         }
+
+        if (Input.GetKeyDown(KeyCode.Escape))
+        {
+            // allow game exit at any time
+            // pressing escape will first just pause game, and if confirmed, will then exit
+            // and play exit voice, or maybe an Advert in future!
+
+            if (Input.GetKeyDown(KeyCode.Escape))
+            {
+                if (bGameStarted && bGameOver)
+                {
+                    // pause game for now
+                    PauseGame(true);
+                }
+
+                // Quit game - but must confirm in a dialog
+                
+                // fix low volume on this clip by using a Mixer set up in gui
+                AudioMixer mixer = Resources.Load("Music") as AudioMixer;
+                string _OutputMixer = "Voice Up 10db"; // group to output this audio listener to
+
+                GetComponent<AudioSource>().outputAudioMixerGroup = mixer.FindMatchingGroups(_OutputMixer)[0];
+                theAudioSource.clip = youReallyWannaGo;
+                theAudioSource.PlayOneShot(theAudioSource.clip, 1f);
+
+                //theGameControllerScript.bGameOver = true;
+                
+                // prevent any inputs in Player controller while we respond
+                thePlayer.GetComponent<PlayerController>().SetAnotherPanelInControl(true);
+
+                // start routine to get confirmation
+                StartCoroutine("GameQuit");
+            }
+        }
+
     }
+    
+    // game quit sequence
+    IEnumerator GameQuit()
+    {
+        yield return new WaitForSeconds(theAudioSource.clip.length + 1f); // length plus 1 sec
+        
+        // show quit dialog
+        bool bLeave = EditorUtility.DisplayDialog("QUIT GAME", "ARE YOU SURE?", "YES", "NO");
+
+        if (bLeave)
+        {
+            // play 'goodbye' voice
+            GetComponent<AudioSource>().outputAudioMixerGroup = theMixer.FindMatchingGroups(_outputMixer)[0];
+            theAudioSource.clip = goodbye;
+            theAudioSource.PlayOneShot(theAudioSource.clip, 1f);
+
+            StartCoroutine("GameFinished");
+        }
+        else
+        {
+            // enable inputs again
+            thePlayer.GetComponent<PlayerController>().SetAnotherPanelInControl(false);
+
+            if (bGameStarted && bGameOver)
+            {
+                // pause game for now
+                PauseGame(false);
+            }
+        }
+    }
+
+    // final termination of game
+    IEnumerator GameFinished()
+    {
+        yield return new WaitForSeconds(theAudioSource.clip.length + 1f); // wait for end of goodbye voice
+        Debug.Log("Game Final Termination!");
+        Application.Quit();
+    }
+
 
     public void UpdatePlayerScore(int scoreChange)
     {
@@ -682,14 +837,16 @@ public class GameplayController : MonoBehaviour
         theSource      = thePlayer.GetComponentInChildren<Camera>().GetComponent<AudioSource>();
         float myVolume = theSource.volume;
 
-        theSource.volume = 0;// /= 5; // 
-
+        theSource.volume = 0;
         StartCoroutine("IncreaseVolumeToPrevious");
 
         // play life lost noise
         theAudioSource.PlayOneShot(lifeLostNoise, 0.3f);
 
         // play life lost voice
+        _outputMixer = "Voice Up 10db"; // increase volume of clip 10db above max volume using mixer
+        GetComponent<AudioSource>().outputAudioMixerGroup = theMixer.FindMatchingGroups(_outputMixer)[0];
+
         theAudioSource.clip = loseALifeVoice;
         theAudioSource.PlayOneShot(theAudioSource.clip, 1f); // play it
     }
@@ -698,9 +855,12 @@ public class GameplayController : MonoBehaviour
     {
         // simply yield and then increase volume to previous level
         yield return new WaitForSeconds(lifeLostNoise.length+ loseALifeVoice.length);
+        
+        _outputMixer = "No Change"; // reset audio to normal
+        GetComponent<AudioSource>().outputAudioMixerGroup = theMixer.FindMatchingGroups(_outputMixer)[0];
 
         // now return it to normal level
-        theSource.volume = .26f; //*= 5;
+        theSource.volume = .26f;
     }
 
     private void LoseALife()

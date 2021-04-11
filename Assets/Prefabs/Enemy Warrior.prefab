@@ -1012,6 +1012,9 @@ MonoBehaviour:
   m_EditorClassIdentifier: 
   currentDestination: {fileID: 0}
   dyingScreech: {fileID: 8300000, guid: c3be150f7c7771e478eea356fd118027, type: 3}
+  longestAttack: {fileID: 8300000, guid: 395c3064a34054843aa8655916971dd5, type: 3}
+  longAttack: {fileID: 8300000, guid: fa41e4d99c4bfb248a70e848e71680b2, type: 3}
+  shortAttack: {fileID: 8300000, guid: e566131efbcbe2e498e00d6098768478, type: 3}
   hitDamage: -1
   startAttackTime: 0
 --- !u!82 &-1601504429940727281

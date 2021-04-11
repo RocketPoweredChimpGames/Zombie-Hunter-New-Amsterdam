@@ -11,8 +11,9 @@ public class PowerUpController : MonoBehaviour
     private GameObject         theGameController;       // GameplayController object in scene
     private GameplayController theGameControllerScript; // the script attached to this object
     private PlayerController   thePlayerControlScript;  // player script for checking night mode
-    private Light[]            theLights;               // array of light objects for activate/deactivate on night mode change
-
+    private Light[]            theLightHolder;          // array of light gameobjects with Light Components within for night mode
+    private Component[]        theLightComponent;       // need these to be able to re-activate them (how crap)
+    
     private float lastUpdateTime;              // time was last updated
     private float startTime;                   // time first appeared on screen
     private float decayPeriod         = 10.0f; // decays a bit every 10 secs
@@ -59,20 +60,53 @@ public class PowerUpController : MonoBehaviour
 
         statusDisplayField = GameObject.FindGameObjectWithTag("Status Display").GetComponent<TMP_Text>();
 
-        // find bonus health field
+        // reset field
         statusDisplayField.text = blank.ToString();
 
-        theLights = GetComponentsInChildren<Light>(); // get light objects
+        /////////// Prefab Name "Glowing Powerup Container" ///////////
+        //                                                           //
+        //                   |                                       //
+        //             "Glowing Powerup" <- has this script          //
+        //             "Light"                                       //
+        //                |_> light    <-    'component' within      //
+        //             "Light 1"                                     //
+        //             "Light 2"                                     //
+        //             "Light 3"                                     //
+        //             "Light 4"                                     //
+        //             "Light 5"                                     //
+        //                                                           // 
+        ///////////////////////////////////////////////////////////////
 
-        // check if we should illuminate the powerup
+        // find the Light GameObjects in the prefab (from root transform's game object down)
+        GameObject rootObject = transform.root.gameObject; // the glowing powerup container
+
+        theLightHolder    = new Light[5];
+        theLightComponent = new Component[5];
+
+        theLightHolder = rootObject.GetComponentsInChildren<Light>();
+        
+        // save them & then check if we should illuminate the powerup
+        // - we save them as Unity can't find inactive objects!
         if (thePlayerControlScript)
         {
-            // illuminate (or not) all the light gameobjects inside
+            // illuminate (or not) all the 'light components' inside
+            for (int i =0; i< theLightHolder.Length; i++)
+            {
+                // find the Light object from each gameObject
+                theLightComponent[i] = theLightHolder[i].GetComponentInChildren<Light>();
+            }
 
-            foreach (Light current in theLights)
+            // now see if we need to illuminate them
+            foreach (Light current in theLightComponent)
             {
                 // illuminate if night mode, switch off otherwise
-               current.enabled = thePlayerControlScript.IsNightMode();
+                if (thePlayerControlScript.IsNightMode() == true)
+                {
+                    current.intensity = 28f;                }
+                else
+                {
+                    current.intensity = 0f;
+                }
             }
         }
     }
@@ -80,10 +114,18 @@ public class PowerUpController : MonoBehaviour
     public void SetPowerupGlowing(bool bGlow)
     {
         // illuminate (or not) all the light gameobjects inside
-        foreach (Light current in theLights)
+ 
+        foreach (Light current in theLightComponent)
         {
-            // illuminate if night mode, switch off otherwise
-            current.enabled = bGlow;
+            // must be a light - illuminate if night mode, switch off otherwise
+            if (thePlayerControlScript.IsNightMode() == true)
+            {
+                current.intensity = 28f;
+            }
+            else
+            {
+                current.intensity = 0f;
+            }
         }
     }
 
@@ -146,7 +188,17 @@ public class PowerUpController : MonoBehaviour
 
             case 5:
                 {
-                    // destroy power pill
+                    // destroy lights around it
+                    foreach (Light current in theLightHolder)
+                    {
+                        // check it's not the powerup
+                        if (!current.CompareTag("Glowing Powerup"))
+                        {
+                            Destroy(current);
+                        }
+                    }
+
+                    // destroy powerup
                     Destroy(gameObject);
                     break;
                 }
@@ -168,12 +220,12 @@ public class PowerUpController : MonoBehaviour
 
     private bool bHitFirstTime = true; // prevent multiple collisions adding extra points
 
-    private void OnCollisionEnter(Collision collision)
+    private void OnTriggerEnter(Collider other)
     {
-        // check who collided with us - if it's the player tell game manager        
+        // check who triggered this - if it's the player tell game manager        
         // to update score
-        
-        if (collision.gameObject.CompareTag("Player") && !hitByPlayer)
+
+        if (other.gameObject.CompareTag("Player") && !hitByPlayer)
         {
             // prevent random re-collisions giving more points
             hitByPlayer = true;
@@ -186,7 +238,7 @@ public class PowerUpController : MonoBehaviour
             // update score in game manager
             theGameControllerScript.UpdatePlayerScore(powerUpPoints);
 
-            string points = powerUpPoints.ToString() + (powerUpPoints ==1 ? " POINT SCORED!" : " POINTS SCORED!");
+            string points = powerUpPoints.ToString() + (powerUpPoints == 1 ? " POINT SCORED!" : " POINTS SCORED!");
 
             statusDisplayField.text = points;
             int bonusHealth = 0;
@@ -217,8 +269,18 @@ public class PowerUpController : MonoBehaviour
 
                 bonusHealth = 0;
             }
+
+            // destroy lights around it
+            foreach (Light current in theLightHolder)
+            {
+                // check it's not the powerup
+                if (!current.CompareTag("Glowing Powerup"))
+                {
+                    Destroy(current);
+                }
+            }
             
-            // disable it as we don't more collisions if we walk through it
+            // now destroy powerup
             Destroy(gameObject, 0.35f);
         }
     }

@@ -5,9 +5,10 @@ using UnityEngine;
 using UnityEngine.AI;
 
 // Controller script used by Enemy (warrior) objects to do a patrol/or attack player, or search for energy power ups
-// on the Game Mesh, **NOTE** NOT used now as for some reason Nav Mesh doesnt work, cannot warp to it whatever I try as says NavMeshAgent is too
-// far away, but left for time being
-// SO.... NO patrolling, collecting of Powerups, just simply attack the player!
+// on the Game Mesh, **NOTE** NOT USED YET as Nav Mesh wouldn't work at start of dev, couldn't warp to it whatever I tried as said
+// NavMeshAgent is too far away.
+//
+// Has code to do patrols, but no patrolling in this project / collecting of Powerups, we just simply attack the Player!
 
 //notgonnabeusing UnityEditor.Experimental.UIElements.GraphView;
 
@@ -20,7 +21,10 @@ public class EnemyController : MonoBehaviour
     NavMeshAgent     theNavMeshAgent;    // nav mesh agent attached to this character
     GameObject       theDestination;     // object we are now going to (may be a player or a powerup)
     
-    public AudioClip dyingScreech;       // noise made when zombie dies
+    public AudioClip dyingScreech;       // zombie death cry
+    public AudioClip longestAttack;      // longest attacking noise
+    public AudioClip longAttack;         // longer  attacking noise
+    public AudioClip shortAttack;        // short   attacking noise
 
     // the scripts we need (obvious functions!)
     private PlayerController   thePlayerControllerScript;
@@ -28,63 +32,65 @@ public class EnemyController : MonoBehaviour
     private GameplayController theGameControllerScript;
 
     // game objects
-    private GameObject thePlayer         = null; // player object
-    private GameObject theSpawnManager   = null; // spawn manager
-    private GameObject theGameController = null; // game play controller
-
-    private Animator   theAnimator       = null; // enemy animator component
-    private Rigidbody  theEnemyRb        = null; // enemy rigidbody
-
-    // Zombie states : patrolling, attacking, or looking for energy
-    private bool onPatrol                = true;   // zombie patrolling
-    private bool onAttack                = false;  // zombie attacking player
-    private bool onPowerUps              = false;  // zombie needs energy
-    private bool powerGobbled            = false;  // true if eats a power up, false right after in case of updates inbetween -not used yet!
-
-    private float lastUpdateTime;             // time this zombie was last updated
-    private float startTime;                  // time this zombie appeared on screen
-    private float depleteEnergyPeriod = 5.0f; // time period in which some energy is lost 
-    private float enemySpeed          = 3.5f; // speed the zombie moves towards player (vector normalised before)
-    private float spaceBetween        = 1f;   // solely for avoiding clipping characters on attacks
-
-    private int currentPowerStatus    = 100;  // zombie starts at full power, and will use 'energyLoss' percent of energy every depleteEnergyPeriod
-    private int energyLoss            = 5;    // zombie energy loss per time period
-    private int minEnergy             = 10;   // minimum energy level before must search for a power up or may die (10%)
-    public  int hitDamage             = -1;   // damage per hit from zombie
-    private int hitCount              = 0;    // how many times has this enemy been hit by player gun
-    private int maxHits               = 5;    // max number of times hit before dying
+    private GameObject thePlayer         = null;   // player object
+    private GameObject theSpawnManager   = null;   // spawn manager
+    private GameObject theGameController = null;   // game play controller
+    private Light      theNightLight     = null;   // illuminate enemy at night
+    private Animator   theAnimator       = null;   // enemy animator component
+    private Rigidbody  theEnemyRb        = null;   // enemy rigidbody
+    private AudioSource theAudioSource   = null;   // audio source
     
-    // Playfield Boundaries
-    private int boundaryZ             = 104;  // top & bottom (+-) boundaries on Z axis from centre (0,0,0)
-    private int boundaryX             = 33;   // left & right (+-) boundaries on X axis from centre (0,0,0)
+    // Zombie states : patrolling, attacking, or looking for energy
+    private bool  onPatrol               = true;   // zombie patrolling
+    private bool  onAttack               = false;  // zombie attacking player
+    private bool  onPowerUps             = false;  // zombie needs energy (yum yum!)
+    private bool  powerGobbled           = false;  // true if eats a power up, false right after in case of updates inbetween -not used yet!
+
+    private float lastUpdateTime;                  // time this zombie was last updated
+    private float startTime;                       // time this zombie appeared on screen
+    private float depleteEnergyPeriod    = 5.0f;   // time period in which some energy is lost 
+    private float enemySpeed             = 3.5f;   // speed the zombie moves towards player (length vector normalised before)
+    private float spaceBetween           = 1f;     // solely for avoiding clipping characters on attacks
+
+    private int   currentPowerStatus     = 100;    // zombie starts at full power, and uses 'energyLoss' percent of energy every depleteEnergyPeriod
+    private int   energyLoss             = 5;      // zombie energy loss per time period
+    private int   minEnergy              = 15;     // minimum energy level before must search for a power up or may die (15%)
+    public  int   hitDamage              = -1;     // damage per hit from zombie
+    private int   hitCount               = 0;      // how many times has this enemy been hit by player gun
+    private int   maxHits                = 5;      // max number of times hit before dying
+    
+    // Playfield Boundaries (change these if ever resizing play area)
+    private int   boundaryZ              = 104;    // top & bottom (+-) boundaries on Z axis from centre (0,0,0)
+    private int   boundaryX              = 33;     // left & right (+-) boundaries on X axis from centre (0,0,0)
+
 
     // Start is called once only before the first frame update
     void Start()
     {
-        //thePlayer = GameObject.FindGameObjectWithTag("Player Base Object");   // player (tried a containerised object)
-        
-        thePlayer         = GameObject.FindGameObjectWithTag("Player");         // player (original heirarchy)
+        thePlayer         = GameObject.FindGameObjectWithTag("Player");         // player
         theSpawnManager   = GameObject.FindGameObjectWithTag("SpawnManager");   // spawn manager 
         theGameController = GameObject.FindGameObjectWithTag("GameController"); // game controller 
+        theNightLight     = transform.root.GetComponentInChildren<Light>();
 
-        // get class scripts
+        // get class scripts etc
         thePlayerControllerScript = thePlayer.GetComponentInParent<PlayerController>();    // find the player controller
-
-        // NO NOT NOW- changed back!!!! Player is now a child in a parent container object (so changed to find controller in children)
-        // as need to be able to rotate an animated object where the animator overrides the
-        // rotation of the transform every time!
-        //thePlayerControllerScript = thePlayer.GetComponentInChildren<PlayerController>();    // find the player controller
-
-        theSpawnManagerScript   = theSpawnManager.GetComponent<SpawnManager>();         // find the spawn manager 
-        theGameControllerScript = theGameController.GetComponent<GameplayController>(); // find the gameplay controller
-        theAnimator             = this.GetComponent<Animator>();  // animator
-
-        startPosition  = gameObject.transform; // our starting position (always returns here after a patrol)
-        theDestination = thePlayer;            // just set to initial player xyz position for now
+        theSpawnManagerScript     = theSpawnManager.GetComponent<SpawnManager>();         // find the spawn manager 
+        theGameControllerScript   = theGameController.GetComponent<GameplayController>(); // find the gameplay controller
+        theAnimator               = this.GetComponent<Animator>(); // animator
+        theAudioSource            = GetComponent<AudioSource>();   // audio player
+        startPosition             = gameObject.transform;          // our starting position (always returns here after a patrol) (unused for now)
+        theDestination            = thePlayer;                     // destination for enemy object - set to player position
 
         // set a random position for initial patrol, use later, set to player for now!
         // currentDestination = theSpawnManagerScript.getPatrolLocation();
 
+        if (theNightLight)
+        {
+            // turn on/off depending on current night mode
+            theNightLight.GetComponent<Light>().intensity = (thePlayerControllerScript.IsNightMode() ? 100f : 0f);
+        }
+
+        // for use when patrolling (used in later projects now)
         lastUpdateTime = Time.realtimeSinceStartup; // start time we will increment later in update()
         startTime      = lastUpdateTime;
 
@@ -111,7 +117,7 @@ public class EnemyController : MonoBehaviour
             // Warp Navmesh to correct positiom
             if (theNavMeshAgent.enabled && !theNavMeshAgent.isOnNavMesh)
             {
-                // ******* I have disabled in Unity Editor until can work out WHY nav mesh agent can't be set on mesh even when WARPED to it! Grrr! *****
+                // Disable in Unity Editor if Nav Mesh ever fails AGAIN!
 
                 Vector3 position = transform.position; // our current position
                 NavMeshHit hit; // closest point on the Nav Mesh
@@ -119,15 +125,15 @@ public class EnemyController : MonoBehaviour
                 NavMesh.SamplePosition(position, out hit, 50.0f, NavMesh.AllAreas); // find it
 
                 
-                Debug.Log("Enemy Position x: " + position.x +
+                /*Debug.Log("Enemy Position x: " + position.x +
                                       " , y: " + position.y +
-                                      " , z: " + position.z);
+                                      " , z: " + position.z);*/
 
-                position = hit.position; // usually this barely changes, if at all
+                position = hit.position; // usually hardly changes
 
-                Debug.Log("Hit Position x: " + position.x +
+                /*Debug.Log("Hit Position x: " + position.x +
                                     " , y: " + position.y +
-                                    " , z: " + position.z);
+                                    " , z: " + position.z);*/
 
                 theNavMeshAgent.Warp(position); // set the agent to be on mesh - but won't work EVER... WHY?
             }
@@ -212,9 +218,25 @@ public class EnemyController : MonoBehaviour
         }
     }
 
-    bool changeState = false;
-    bool attackingPlayer = false;
     public float startAttackTime;
+    private bool attackingPlayer = false; // checked by Attack sound coroutine to stop attack noises
+    bool         changeState     = false;
+
+    private void FixedUpdate()
+    {
+        // check if night mode
+        if (thePlayerControllerScript.IsNightMode())
+        {
+            // turn on night mode light
+            theNightLight.intensity = 100f;
+        }
+        else
+        {
+            theNightLight.intensity = 0f;
+        }
+    }
+
+    float healthPeriod = 5.0f; // lose some health every five seconds (per attacker!)
 
     // Update is called once per frame
     void Update()
@@ -222,7 +244,7 @@ public class EnemyController : MonoBehaviour
         if (timeHasPassed() && !powerGobbled)
         {
             // decrease energy ONLY every "depleteEnergyPeriod"
-            if ((lastUpdateTime - startTime) % depleteEnergyPeriod == 0) // CHECK THIS MIGHT BE WRONG CALC 
+            if ((lastUpdateTime - startTime) % depleteEnergyPeriod == 0)
             {
                 // a depleteEnergyPeriod has passed
                 currentPowerStatus -= energyLoss; // reduce energy of object
@@ -250,8 +272,8 @@ public class EnemyController : MonoBehaviour
 
         }
 
-        // Changed Priority of project - enemies always attack player and don't patrol/require energy!
-        onAttack = true;
+        // NOTE: *** Changed Priority of project - Enemies always attack Player and don't do any patrol /or require energy! ***
+        onAttack = true; // DO NOT REMOVE THIS
 
         if (onAttack)
         {
@@ -266,16 +288,25 @@ public class EnemyController : MonoBehaviour
                 changeState = true;
             }
 
-            if ((Vector3.Distance(thePlayer.transform.position, transform.position) <= 2) && !attackingPlayer && !IsDying())
+            // start a coroutine here to play a different noise when closing in on player ONLY
+            //if ((Vector3.Distance(thePlayer.transform.position, transform.position) <= 10f) && !attackingPlayer && !IsDying())
+            //{
+                //StartCoroutine("PlayNearToPlayerNoise");
+            //}
+
+            if ((Vector3.Distance(thePlayer.transform.position, transform.position) <= 2.5f) && !attackingPlayer && !IsDying())
             {
-                Debug.Log("attacking player! - distance between" + Vector3.Distance(thePlayer.transform.position, transform.position));
+                //Debug.Log("attacking player! - distance between" + Vector3.Distance(thePlayer.transform.position, transform.position));
 
                 theAnimator.SetBool("b_Attack", true);
                 startAttackTime = Time.realtimeSinceStartup;
                 attackingPlayer = true;
+
+                // start coroutine to play attack sounds until cancelled
+                StartCoroutine("PlayZombieAttack");
             }
 
-            float healthPeriod = 5.0f; // lose some health every five seconds (per attacker!)
+            
 
             if (attackingPlayer)
             {
@@ -287,7 +318,7 @@ public class EnemyController : MonoBehaviour
                 }
             }
 
-            if (Vector3.Distance(thePlayer.transform.position, transform.position) > 2.1 && attackingPlayer && !IsDying())
+            if (Vector3.Distance(thePlayer.transform.position, transform.position) > 2.5 && attackingPlayer && !IsDying())
             {
                 // not in attack range of player OR dead!
                 //theAnimator.SetFloat("f_Speed", 2.1f);
@@ -307,14 +338,12 @@ public class EnemyController : MonoBehaviour
         // only move enemy towards player if game is not paused
         if (!theGameControllerScript.IsGamePaused())
         {
-            // Move Enemy towards Player object (this movement bit was a real b*llAche to get working
-            // as didn't know rigidbodies should only be moved using AddForce() not Translate!
+            // Move Enemy towards Player object
             if (Vector3.Distance(thePlayer.transform.position, transform.position) >= spaceBetween)
             {
                 // get vector to player position (and normalise it to same 'length' per update)
                 Vector3 direction = (thePlayer.transform.position - transform.position);
-                //direction.y = 0.0f; // ensure always on ground as animations sometimes wander off!
-
+                
                 // change magnitude TO UNIT LENGTH if necessary
                 if (direction.magnitude > 1.0f)
                 {
@@ -333,17 +362,12 @@ public class EnemyController : MonoBehaviour
                 if (!IsDying())
                 {
                     // only move towards player if this enemy isn't already dead
-                    // always use AddForce for characters with rigibodies!
-                    //theEnemyRb.AddForce(direction * 90, ForceMode.Impulse);
-                    //theEnemyRb.AddForce(direction * FindCurrentEnemySpeed() , ForceMode.Impulse);
-
-                    // use Movetowards() instead for now
-                    gameObject.transform.position = Vector3.MoveTowards(transform.position, thePlayer.transform.position, Time.deltaTime * FindCurrentEnemySpeed());
-
-                    // this is too fast on faster cpu pc's
-                    //  gameObject.transform.Translate((thePlayer.transform.position - gameObject.transform.position) * Time.deltaTime * 0.5f);
-                    //  direction * FindCurrentEnemySpeed(), ForceMode.Impulse);
-                    /// removed above.
+                    // use Movetowards() and leave a small gap inbetween player and zombie to avoid Character controller Y-Axis 'JUMP UP' problem
+                    if (!attackingPlayer)
+                    {
+                        gameObject.transform.position = Vector3.MoveTowards(transform.position, thePlayer.transform.position, Time.deltaTime * FindCurrentEnemySpeed());
+                    }
+                    //gameObject.transform.position = Vector3.MoveTowards(transform.position, thePlayer.transform.position, Time.deltaTime * FindCurrentEnemySpeed());
                 }
                 else
                 {
@@ -351,6 +375,35 @@ public class EnemyController : MonoBehaviour
                 }
             }
         }
+    }
+
+    IEnumerator PlayZombieAttack()
+    {
+        // play a randomly selected Zombie attack noise, and at end change it to a different random one
+        while (attackingPlayer)
+        {
+            if (!theAudioSource.isPlaying)
+            {
+                // nothing playing - so play a clip
+                AudioClip clipToPlay;
+                int clipNum = UnityEngine.Random.Range(0, 2);
+
+                switch (clipNum)
+                {
+                    case 1:  clipToPlay = shortAttack;   break;
+                    case 2:  clipToPlay = longAttack;    break;
+                    case 3:  clipToPlay = longestAttack; break;
+                    default: clipToPlay = longAttack;    break;
+                }
+
+                theAudioSource.PlayOneShot(clipToPlay, 1f);
+
+                yield return new WaitForSeconds(clipToPlay.length);
+            }
+            else yield return null;
+        }
+
+        yield return null;
     }
 
     enum enemySpeeds { slow, medium, normal }

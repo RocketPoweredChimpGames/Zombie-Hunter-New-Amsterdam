@@ -62,6 +62,12 @@ TagManager:
   - Search Spotlight
   - Glowing Powerup
   - Wall
+  - HQ Entry Sensor
+  - HQ Entry Spots
+  - HQ Exit Sensor
+  - Wall Lantern Flickering
+  - Powerup Container
+  - Game Exit Panel
   layers:
   - Default
   - TransparentFX

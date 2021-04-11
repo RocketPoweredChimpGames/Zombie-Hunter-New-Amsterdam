@@ -2740,10 +2740,16 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: 2b41f606ebac31b458eb298193db5e47, type: 3}
   m_Name: 
   m_EditorClassIdentifier: 
+  theFlameThrower: {fileID: 0}
   laserFire: {fileID: 8300000, guid: 715f3f9c38b1ec142a4e0ef78226d18a, type: 3}
   walkMovement: {fileID: 8300000, guid: 9ceeae4daab7abf4492e791f2bdee34a, type: 3}
   zombieHit: {fileID: 8300000, guid: 38e6c2fa995b19740867531147588341, type: 3}
+  youReallyWannaGo: {fileID: 0}
+  daySkyBox: {fileID: 0}
+  nightSkyBox: {fileID: 0}
   gravityModifier: 0.8
+  bNightModeOn: 0
+  rotationSpeed: 180
   damageDone: 10
   rangeForHits: 100
 --- !u!198 &6953097293877716673

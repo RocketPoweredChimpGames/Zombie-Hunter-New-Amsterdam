@@ -375,10 +375,14 @@ public class HighScoreTableController : MonoBehaviour
         UsernameInputField.gameObject.SetActive(false);
         
         // reset to day mode if we are in night mode at game end 
-        if (thePlayer.GetComponent<PlayerController>().IsNightMode())
+
+        if (thePlayer)
         {
-            // set to day mode
-            thePlayer.GetComponent<PlayerController>().ToggleNightMode();
+            if (thePlayer.GetComponent<PlayerController>().IsNightMode())
+            {
+                // set to day mode
+                thePlayer.GetComponent<PlayerController>().ToggleNightMode();
+            }
         }
 
         // now allow other inputs on this panel again

@@ -1,4 +1,5 @@
-﻿using System;
+﻿using JetBrains.Annotations;
+using System;
 using System.Collections;
 using System.Collections.Generic;
 using UnityEngine;
@@ -22,18 +23,20 @@ public class PlayerController : MonoBehaviour
 
     // spot light
     private GameObject   theHeadLamp = null;  // player headlamp
-    private GameObject[] theStreetlightBulbs; // street lighting
+    private GameObject[] theStreetlightBulbs; // street lighting <move this to game controller?)
+    private GameObject[] theHQSpotlights;     // HQ spotlighting (move this to game controller?)
+    private GameObject[] theFlickeryLanterns; // Flickering Lanterns (move this to game controller?)
 
     // buttons
-    private Button smartBombButton;     // smart bomb indicator button
+    private Button      smartBombButton;  // smart bomb indicator button
 
     // sound clips
-    public  AudioClip laserFire;        // laser gunfire sound
-    public  AudioClip walkMovement;     // walking sound
-    public  AudioClip zombieHit;        // zombie hit
-    public  AudioClip youReallyWannaGo; // "wanna go" - escape key voice
+    public  AudioClip   laserFire;        // laser gunfire sound
+    public  AudioClip   walkMovement;     // walking sound
+    public  AudioClip   zombieHit;        // zombie hit
+    public  AudioClip   youReallyWannaGo; // "wanna go" - escape key voice
 
-    private AudioSource theAudio;       // audio source
+    private AudioSource theAudio;         // audio source
 
     // sky box materials
     public Material daySkyBox;
@@ -42,7 +45,7 @@ public class PlayerController : MonoBehaviour
     // gravity & speed
     private Vector3 realGravity;          // real world gravity vector (0f,-9.8f,0f)
     public  float   gravityModifier = 1f; // how much extra gravity force is applied
-    private float   speed = 22f;          // player movement speed
+    private float   speed = 12f;          // player movement speed
 
     // scoring
     private int pointsPerEnemyHitShot = 1;    // points per hit
@@ -59,6 +62,64 @@ public class PlayerController : MonoBehaviour
     // bool set by panels to stop player input going ahead here until they say so
     bool bAnotherPanelInControl = false;
 
+    // character controller stuff - added 25/9/2020 to try out
+    // unity example code
+    //
+    private CharacterController playerMovementController;
+    private Vector3 playerVelocity;
+    private bool    groundedPlayer;
+    private float   playerSpeed  = 15.0f;
+    private float   jumpHeight   = 1.0f;
+    private float   gravityValue = -9.81f;
+
+    // from another example online
+    public float    rotationSpeed = 180;
+    private Vector3 rotation;
+    //
+    // end example code
+
+    // stuff required for BUG in Unity character controller!
+    private int            overlappingCollidersCount = 0;
+    private Collider[]     overlappingColliders      = new Collider[256];
+    private List<Collider> ignoredColliders          = new List<Collider>(256);
+
+    private void PreCharacterControllerUpdate()
+    {
+        Vector3 center = transform.TransformPoint(playerMovementController.center);
+        Vector3 delta = (0.5f * playerMovementController.height - playerMovementController.radius) * Vector3.up;
+        Vector3 bottom = center - delta;
+        Vector3 top = bottom + delta;
+
+        overlappingCollidersCount = Physics.OverlapCapsuleNonAlloc(bottom, top, playerMovementController.radius, overlappingColliders);
+
+        for (int i = 0; i < overlappingCollidersCount; i++)
+        {
+            Collider overlappingCollider = overlappingColliders[i];
+
+            if (overlappingCollider.gameObject.isStatic)
+            {
+                continue;
+            }
+
+            ignoredColliders.Add(overlappingCollider);
+            Physics.IgnoreCollision(playerMovementController, overlappingCollider, true);
+        }
+    }
+
+    private void PostCharacterControllerUpdate()
+    {
+        for (int i = 0; i < ignoredColliders.Count; i++)
+        {
+            Collider ignoredCollider = ignoredColliders[i];
+
+            Physics.IgnoreCollision(playerMovementController, ignoredCollider, false);
+        }
+
+        ignoredColliders.Clear();
+    }
+    // END OF stuff required for BUG in Unity character controller! Ignores Collisions which make it 'jump up'
+
+
     public void SetAnotherPanelInControl(bool inControl)
     {
         bAnotherPanelInControl = inControl;
@@ -73,9 +134,12 @@ public class PlayerController : MonoBehaviour
     // Start is called before the first frame update
     void Start()
     {
-        // get players rigidbody component & find focus
-        playerRb = GetComponent<Rigidbody>();
+        // get players rigidbody component & find focus point for camera
+        playerRb   = GetComponent<Rigidbody>();
         focusPoint = GameObject.Find("Focus Point");
+
+        // add character controller
+        playerMovementController = gameObject.GetComponent<CharacterController>();
 
         // get audio source
         theAudio = GetComponent<AudioSource>();
@@ -104,12 +168,25 @@ public class PlayerController : MonoBehaviour
             smartBombAvailable = true;
         }
 
+        // find for later usage - turn off for now
+        theHQSpotlights = GameObject.FindGameObjectsWithTag("HQ Entry Spots");
+        ActivateHQEntrySpots(false);
+
+        // find the flickering wall lanterns in scene
+        theFlickeryLanterns = GameObject.FindGameObjectsWithTag("Wall Lantern Flickering");
+
         // turn off streetlight light bulbs!
         theStreetlightBulbs = GameObject.FindGameObjectsWithTag("Light Bulb");
 
         foreach (GameObject bulb in theStreetlightBulbs)
         {
             bulb.SetActive(false);
+        }
+
+        // turn off lanterns
+        foreach (GameObject lantern in theFlickeryLanterns)
+        {
+            lantern.SetActive(false);
         }
 
         // get game manager
@@ -248,79 +325,46 @@ public class PlayerController : MonoBehaviour
             if (!theGameControllerScript.IsGamePaused())
             {
                 // process inputs as not currently paused
+                
+                // check if player is on ground (example code still)
+                groundedPlayer = playerMovementController.isGrounded;
+
+                if (groundedPlayer && playerVelocity.y < 0)
+                {
+                    playerVelocity.y = 0f;
+                }
 
                 // get player cursor key inputs
                 float horizontalInput = Input.GetAxis("Horizontal"); // -1 to 1 input from key press (left/right X Axis)
                 float verticalInput   = Input.GetAxis("Vertical");   // -1 to 1 input from key press (down/up Z Axis)
                 float speed           = 12f;
 
-                /*  ORIGINAL CODE FOR PLAYER MOVEMENT IF ALL ELSE FAILS - DO NOT CHANGE STUFF INSIDE HERE!
-                    // Move the player depending on which key is pressed
-                    if (Input.GetKey(KeyCode.UpArrow) || Input.GetKey(KeyCode.DownArrow))
-                    {
-                        // Vertical Movement (up) on Z-Axis
-                        transform.Translate(Vector3.forward * verticalInput * Time.deltaTime * speed);
-                    }
-                    else if (Input.GetKey(KeyCode.LeftArrow) || Input.GetKey(KeyCode.RightArrow))
-                    {
-                        // go a bit slower left/right
-                        transform.Translate(Vector3.right * horizontalInput * Time.deltaTime * (speed-6f));
-                    }
-                    
-                    transform.Translate(Vector3.right * horizontalInput * Time.deltaTime * speed);
-                    END OF ORIGINAL CODE */
+                // NEW MOVEMENT CONTROLLER CODE 25/9/2020
+                //Vector3 move = new Vector3(Input.GetAxis("Horizontal"), 0, Input.GetAxis("Vertical"));
+
+                this.rotation = new Vector3(0,    Input.GetAxisRaw("Horizontal") * rotationSpeed * Time.deltaTime *0.23f, 0);
+                Vector3 move  = new Vector3(0, 0, Input.GetAxisRaw("Vertical") * Time.deltaTime);
+
+                move   = this.transform.TransformDirection(move);
+
+                // Ignore some Collisions
+                //PreCharacterControllerUpdate();
                 
-                   // original dont change
-                   // rotate player (sort of)
-                   // transform.Rotate(Vector3.up, horizontalInput * Time.deltaTime * 50);
-                
+                playerMovementController.Move(move * playerSpeed);
+                playerMovementController.transform.position = new Vector3(transform.position.x, 0f, transform.position.z); // always on ground
 
-                // New movement control code
-                if (horizontalInput != 0)
-                {
-                    // **********   USE THIS IF MY CHANGE DOESNT WORK ***************************************************
-                    Rigidbody theRigidBody = gameObject.GetComponentInChildren<Rigidbody>();
+                //PostCharacterControllerUpdate();
 
-                    // Get the Root Transform of the Player Object (i.e. the top level game object)
-                    Transform theRootTransform = transform.root;
+                this.transform.Rotate(this.rotation);
 
-                    // now create a new vector3 to lookAt
-                    Vector3 m_EulerAngleVelocity = new Vector3(0f, 80f, 0f);
+                // Changes the height position of the player..
+                //if (Input.GetButtonDown("Jump") && groundedPlayer)
+                //{
+                //    playerVelocity.y += Mathf.Sqrt(jumpHeight * -3.0f * gravityValue);
+                //}
 
-                    Quaternion deltaRotation = Quaternion.Euler(m_EulerAngleVelocity * Time.deltaTime * horizontalInput);
-                    theRigidBody.MoveRotation(theRigidBody.rotation * deltaRotation);
-
-                    transform.LookAt(theRigidBody.transform.position);
-                    theRootTransform.Translate(Vector3.right * horizontalInput * Time.deltaTime * 3);
-                }
-                // **********   USE THIS IF MY CHANGE DOESNT WORK ***************************************************
-
-                if (horizontalInput != 0)
-                {
-                    // HORIZONTAL MOVEMENT
-
-                    // rotate around
-                    transform.RotateAround(transform.position, Vector3.up, 3f * horizontalInput);
-                }
-
-                if (verticalInput != 0)
-                {
-                    // VERTICAL MOVEMENT
-
-                    // Get the root transform of the Player Object (i.e. our container object's transform)
-                    Transform theRootTransform = transform.root;
-
-                    // now create a new vector3 to lookAt based on user input for z-axis movement
-                    Vector3 m_EulerAngleVelocity = new Vector3(0f,
-                                                               0f,
-                                                               theRootTransform.position.z);
-                    
-                    theRootTransform.Translate(Vector3.forward * verticalInput * Time.deltaTime * speed);
-                }
-                else
-                {
-                    transform.root.gameObject.GetComponentInChildren<Rigidbody>().velocity = new Vector3(0f, 0f, 0f);
-                }
+                //playerVelocity.y += gravityValue * Time.deltaTime;
+                //controller.Move(playerVelocity * Time.deltaTime);
 
                 // check boundaries for player movement
                 if (horizontalInput != 0 || verticalInput != 0)
@@ -409,28 +453,6 @@ public class PlayerController : MonoBehaviour
                     theAnimator.SetFloat("f_Speed", 0f);
                 }
 
-                // Quick exit game!
-                if (Input.GetKeyDown(KeyCode.Escape))
-                {
-                    // quit game
-
-                    // fix low volume on this clip by using a Mixer set up in gui
-                    AudioMixer mixer = Resources.Load("Music") as AudioMixer;
-                    string _OutputMixer = "Voice Up"; // group to output this audio listener to
-
-                    GetComponent<AudioSource>().outputAudioMixerGroup = mixer.FindMatchingGroups(_OutputMixer)[0];
-
-                    theAudio.clip = youReallyWannaGo;
-                    theAudio.PlayOneShot(theAudio.clip, 1f);
-
-                    theGameControllerScript.bGameOver = true;
-
-                    // wait for clip to finish plus a second
-                    StartCoroutine("GameQuit");
-
-                    //Application.Quit();
-                }
-
                 // Shoot Flamethrower
                 if (Input.GetKeyDown(KeyCode.Space))
                 {
@@ -498,28 +520,41 @@ public class PlayerController : MonoBehaviour
         }
     }
 
-    // prevent entry through walls
-
+    // detect triggers set up which can be activated by the player
     private void OnTriggerEnter(Collider other)
     {
         // check what we collided with
-        if (other.gameObject.CompareTag("Wall"))
+        if (other.gameObject.CompareTag("HQ Entry Sensor") && IsNightMode())
         {
-            Debug.Log("Trigger from Collision with a Wall!");
+            // turn on the spotlighting at the HQ building
+            Debug.Log("Entered HQ Zone!");
+            ActivateHQEntrySpots(true);
         }
     }
 
-    IEnumerator GameQuit()
+    // detect triggers set up which can be de-activated by the player
+    private void OnTriggerExit(Collider other)
     {
-        yield return new WaitForSeconds(theAudio.clip.length + 2f); // length plus 2 secs
-
-        // may need to reset audio mixer, altho not needed yet
-        /*AudioMixer mixer = Resources.Load("Master") as AudioMixer;
-        string _OutputMixer = "sweet f.a. here"; // group to output this audio listener to  -  need to do a blank one here?
-        GetComponent<AudioSource>().outputAudioMixerGroup = mixer.FindMatchingGroups(_OutputMixer)[0];*/
-
-        Application.Quit();
+        // check what we collided with
+        if (other.gameObject.CompareTag("HQ Exit Sensor"))
+        {
+            // turn off the spotlighting at the HQ building
+            Debug.Log("Leaving HQ Zone!");
+            ActivateHQEntrySpots(false);
+        }
     }
+
+    // Turn on/off the HQ lighting
+    private void ActivateHQEntrySpots(bool onOff)
+    {
+        // turn them on/off
+        foreach (GameObject current in theHQSpotlights)
+        {
+            Light currLight = current.GetComponent<Light>(); 
+            currLight.gameObject.SetActive(onOff);
+        }
+    }
+
     public bool IsNightMode()
     {
         // needed to turn on day mode if ending and entering a password in HighscoreController
@@ -548,8 +583,8 @@ public class PlayerController : MonoBehaviour
                 // set intensity to dark
                 theLight.intensity = 0f;
 
-                UnityEngine.RenderSettings.ambientIntensity = 0.25f; // Will make it dark
-                UnityEngine.RenderSettings.reflectionIntensity = 0.25f; // will make it dark
+                UnityEngine.RenderSettings.ambientIntensity    = 0.2f; // Will make it dark
+                UnityEngine.RenderSettings.reflectionIntensity = 0.2f; // will make it dark
             }
             
             // turn on searchlights
@@ -558,6 +593,7 @@ public class PlayerController : MonoBehaviour
             bNightModeOn = !bNightModeOn;
 
             // turn on fire flies display!
+            theFireFlies.transform.position = new Vector3(30f, 0f, -25f);
             theFireFlies.SetActive(true);
             theFireFlies.GetComponentInChildren<ParticleSystem>().playOnAwake = true;
             theFireFlies.GetComponentInChildren<ParticleSystem>().Play();
@@ -570,6 +606,12 @@ public class PlayerController : MonoBehaviour
                 aCandle.GetComponentInChildren<ParticleSystem>().Play();
             }
 
+            // turn on flickering lanterns
+            foreach (GameObject lantern in theFlickeryLanterns)
+            {
+                lantern.SetActive(true);
+            }
+
             // turn on street lighting
             foreach (GameObject bulb in theStreetlightBulbs)
             {
@@ -579,7 +621,7 @@ public class PlayerController : MonoBehaviour
             // turn on glowing powerups - (these can be destroyed dynamically elsewhere)
             // by each PowerupController, so check for this
 
-            GameObject[] glowingPowerups = GameObject.FindGameObjectsWithTag("Power Up"); // current (at this millisecond!) ones
+            GameObject[] glowingPowerups = GameObject.FindGameObjectsWithTag("Glowing Powerup"); // current (at this millisecond!) ones
 
             foreach (GameObject glowing in glowingPowerups)
             {
@@ -591,7 +633,7 @@ public class PlayerController : MonoBehaviour
                 if (glowing != null)
                 {
                     // set glowing light to 'on'
-                    glowing.GetComponent<PowerUpController>().SetPowerupGlowing(true);
+                    glowing.GetComponentInChildren<PowerUpController>().SetPowerupGlowing(true);
                 }
                 else
                 {
@@ -620,10 +662,16 @@ public class PlayerController : MonoBehaviour
                 bulb.SetActive(false);
             }
 
+            // turn off flickering lanterns
+            foreach (GameObject lantern in theFlickeryLanterns)
+            {
+                lantern.SetActive(false);
+            }
+
             // turn off glowing powerups - (these can be destroyed dynamically elsewhere)
             // by each PowerupController, so check for this
 
-            GameObject[] glowingPowerups = GameObject.FindGameObjectsWithTag("Power Up"); // current (at this millisecond!) ones
+            GameObject[] glowingPowerups = GameObject.FindGameObjectsWithTag("Glowing Powerup"); // current (at this millisecond!) ones
 
             foreach (GameObject glowing in glowingPowerups)
             {
@@ -642,6 +690,9 @@ public class PlayerController : MonoBehaviour
                     Debug.Log("Deleted glowing Powerup - in turn off");
                 }
             }
+
+            // turn off HQ spotlights in case we did toggle night mode in there
+            ActivateHQEntrySpots(false);
 
             // reset night to day!
             UnityEngine.RenderSettings.skybox = daySkyBox;
@@ -739,7 +790,7 @@ public class PlayerController : MonoBehaviour
 
         // Shoot the ray to see if we hit something!
         // - the shoot point for flames (not this shoot point!) is an invisible box positioned exactly where animation of gun reaches, on the player object
-        Vector3 shootPoint = new Vector3(transform.position.x, 1.8f, transform.position.z); // shoot from 1f above ground
+        Vector3 shootPoint = new Vector3(transform.position.x, 1.85f, transform.position.z); // shoot from 1.25f above ground
 
         // shoot the flames
         StartCoroutine(ShootFlamethrower());
