@@ -34,9 +34,12 @@ public class PlayerController : MonoBehaviour
     public  AudioClip   laserFire;        // laser gunfire sound
     public  AudioClip   walkMovement;     // walking sound
     public  AudioClip   zombieHit;        // zombie hit
-    public  AudioClip   youReallyWannaGo; // "wanna go" - escape key voice
-
+    public  AudioClip   youReallyWannaGo; // "you wanna go" - escape key voice
+    public  AudioClip   emptyGunNoise;    // just an air noise
+    public  AudioClip   reloadVoice;      // reload gun voice
     private AudioSource theAudio;         // audio source
+    private AudioMixer  theMixer;         // audio mixer
+    private string      _outputMixer;     // holds mixer struct
 
     // sky box materials
     public Material daySkyBox;
@@ -45,12 +48,18 @@ public class PlayerController : MonoBehaviour
     // gravity & speed
     private Vector3 realGravity;          // real world gravity vector (0f,-9.8f,0f)
     public  float   gravityModifier = 1f; // how much extra gravity force is applied
-    private float   speed = 12f;          // player movement speed
+    //private float   speed = 12f;          // player movement speed
 
     // scoring
     private int pointsPerEnemyHitShot = 1;    // points per hit
     private int maxPointsPerEnemy     = 10;   // gamePlayController "points per hit" multiplier - set to 10 as 5 hits per enemy to destroy
     private bool smartBombAvailable   = true; // smart bomb availability to player
+
+    // weapon fire count
+    private int   shotsFired           = 0;     // shots fired this magazine
+    private int   maxShotsInMagazine   = 100;   // shots before reload required
+    private bool  bGunAvailable        = true;  // gun always available at start
+    private bool  bWeaponReloadStarted = false; // have we started timer to reload already
 
     // game boundaries
     private int boundaryZ = 208; // top & bottom (+-) boundaries on Z axis from centre (0,0,0)
@@ -62,9 +71,7 @@ public class PlayerController : MonoBehaviour
     // bool set by panels to stop player input going ahead here until they say so
     bool bAnotherPanelInControl = false;
 
-    // character controller stuff - added 25/9/2020 to try out
-    // unity example code
-    //
+    // character controller stuff - added 25/9/2020
     private CharacterController playerMovementController;
     private Vector3 playerVelocity;
     private bool    groundedPlayer;
@@ -78,7 +85,7 @@ public class PlayerController : MonoBehaviour
     //
     // end example code
 
-    // stuff required for BUG in Unity character controller!
+    // stuff required for BUG in Unity character controller! - not used at minute now
     private int            overlappingCollidersCount = 0;
     private Collider[]     overlappingColliders      = new Collider[256];
     private List<Collider> ignoredColliders          = new List<Collider>(256);
@@ -141,9 +148,10 @@ public class PlayerController : MonoBehaviour
         // add character controller
         playerMovementController = gameObject.GetComponent<CharacterController>();
 
-        // get audio source
+        // set audio source component & mixer
         theAudio = GetComponent<AudioSource>();
-
+        theMixer = Resources.Load("Music") as AudioMixer; // from created "Resources/Music/..." folder in heirarchy
+        
         if (focusPoint == null)
         {
             Debug.Log("Couldn't find the Players Focus Point object, check enabled in gui and correctly tagged/named");
@@ -298,6 +306,24 @@ public class PlayerController : MonoBehaviour
         yield return new WaitForSeconds(theFlameThrower.GetComponentInChildren<ParticleSystem>().main.duration);
     }
 
+    private bool bReloadVoice      = false; // no empty gun noise till this is set true
+    private bool bBreathingPlaying = false; // have we started playing it
+
+    IEnumerator PlayBreathingMovement()
+    {
+        if (!bBreathingPlaying)
+        {
+            // play breathing sound only when moving forwards or backwards
+            bBreathingPlaying = true; // prevent another play until this has finished
+            theAudio.clip     = walkMovement;
+            theAudio.volume   = 0.8f;
+            theAudio.PlayOneShot(walkMovement,0.8f);
+        }
+        
+        yield return new WaitForSeconds(walkMovement.length);
+        bBreathingPlaying = false;
+    }
+
     // Update is called once per frame
     void Update()
     {
@@ -337,7 +363,6 @@ public class PlayerController : MonoBehaviour
                 // get player cursor key inputs
                 float horizontalInput = Input.GetAxis("Horizontal"); // -1 to 1 input from key press (left/right X Axis)
                 float verticalInput   = Input.GetAxis("Vertical");   // -1 to 1 input from key press (down/up Z Axis)
-                float speed           = 12f;
 
                 // NEW MOVEMENT CONTROLLER CODE 25/9/2020
                 //Vector3 move = new Vector3(Input.GetAxis("Horizontal"), 0, Input.GetAxis("Vertical"));
@@ -350,6 +375,15 @@ public class PlayerController : MonoBehaviour
                 // Ignore some Collisions
                 //PreCharacterControllerUpdate();
                 
+                if (verticalInput != 0)
+                {
+                    if (!bBreathingPlaying)
+                    {
+                        // play movement breathing sound
+                        StartCoroutine("PlayBreathingMovement");
+                    }
+                }
+
                 playerMovementController.Move(move * playerSpeed);
                 playerMovementController.transform.position = new Vector3(transform.position.x, 0f, transform.position.z); // always on ground
 
@@ -456,14 +490,33 @@ public class PlayerController : MonoBehaviour
                 // Shoot Flamethrower
                 if (Input.GetKeyDown(KeyCode.Space))
                 {
-                    // Shoot the flamethrower gun / do particle effects & gun noise
-                    ShootGun();
+                    // Shoot the flamethrower gun / do particle effects & gun noise - if available
+                    if (bGunAvailable)
+                    {
+                        ShootGun();
+                        bReloadVoice = false;
+                    }
+                    else 
+                    {
+                        if (bReloadVoice)
+                        {
+                            // now play "empty air" noise as reload voice has finished playing
+                            _outputMixer = "Voice Up 5db"; // group to output the audio listener to
+                            GetComponent<AudioSource>().outputAudioMixerGroup = theMixer.FindMatchingGroups(_outputMixer)[0];
+                            theAudio.clip = emptyGunNoise;
+                            theAudio.PlayOneShot(emptyGunNoise, 0.7f);
+
+                            // reset volume to normal
+                            StartCoroutine(theGameControllerScript.ResetVolumeToNormal(emptyGunNoise));
+                        }
+                    }
                 }
 
                 // smart bomb destroy of all enemies
                 if (Input.GetKeyDown(KeyCode.G))
                 {
                     // Destroy all enemies with smart bomb
+                    theGameControllerScript.PostStatusMessage("SMART BOMB USED!");
                     DestroyAllEnemies();
                 }
 
@@ -769,67 +822,116 @@ public class PlayerController : MonoBehaviour
         smartBombAvailable = true;
     }
 
+    public void SetGunAvailable()
+    {
+        // game controller countdown finished
+        bGunAvailable        = true;  // reset gun available flag
+        bWeaponReloadStarted = false; // reset gun reload timer flag
+        shotsFired           = 0;     // reset shots fired
+
+        // post display message
+        theGameControllerScript.PostStatusMessage("WEAPON AVAILABLE!"); // clears after 4 secs
+    }
+
+    IEnumerator PlayGunReloaded()
+    {
+        yield return null; // for now
+    }
+
+    IEnumerator ReloadVoicePlay()
+    {
+        theAudio.enabled = true;
+        theAudio.clip    = reloadVoice;
+        theAudio.volume  = .8f;
+        theAudio.PlayOneShot(reloadVoice,1f);
+
+        yield return new WaitForSeconds(reloadVoice.length);
+        bReloadVoice = true; // now allow "empty air" voice to play
+    }
+
     void ShootGun()
     {
-        // Does a raycast from the players transform in a forward facing direction
-        // the 'hit' variable returns the position of the hit on an object collider which we check to see if an enemy character
-        // or not, if it is, send a message to enemy object to do damage, and cause it to explode/die,
-        // Regardless, does a flame particle effect in transforms forward direction.
+        shotsFired++; // increment shots fired
 
-        // set to repeat shot animation, as more likely to be firing repeatedly and single shot anim is too slow to activate!
-        theAnimator.SetBool("b_RepeatShot", true);
-
-        AudioSource source = GetComponent<AudioSource>();
-
-        // play flamethrower sound straight away - dont wait for completion just play, sounds ok anyway if done repeatedly!
-        source.enabled = true;
-        source.clip = laserFire;
-        source.Play();
-
-        RaycastHit pointHit;
-
-        // Shoot the ray to see if we hit something!
-        // - the shoot point for flames (not this shoot point!) is an invisible box positioned exactly where animation of gun reaches, on the player object
-        Vector3 shootPoint = new Vector3(transform.position.x, 1.85f, transform.position.z); // shoot from 1.25f above ground
-
-        // shoot the flames
-        StartCoroutine(ShootFlamethrower());
-
-        if (Physics.Raycast(shootPoint, transform.forward, out pointHit, rangeForHits))
+        // check if we have already exceeded magazine contents before allowing shot
+        if (shotsFired >= maxShotsInMagazine)
         {
-            // ok... we hit something in range with the raycast
-            //Debug.Log("Laser hit :  " + pointHit.transform.name);
-            //Debug.Log("Position of Ray cast Hit (x,y,z) is: x=   " + pointHit.point.x + ", y=   " + pointHit.point.y + ", z=   " + pointHit.point.z + ".");
-            //Debug.DrawRay(shootPoint, transform.TransformDirection(Vector3.forward) * pointHit.distance, Color.white, 2.0f);
-
-            // check who collided with us - if player update game manager with score        
-            if (pointHit.transform.CompareTag("Enemy Warrior"))
+            if (!bWeaponReloadStarted)
             {
-                // hit warrior (zombie) - update score in game manager
-                theGameControllerScript.UpdatePlayerScore(pointsPerEnemyHitShot); // one point per hit
+                // start timer to reload weapon magazine which will set gun reloaded and reset flag
+                // upon completion
+                bGunAvailable        = false;
+                bWeaponReloadStarted = true;
+                theGameControllerScript.StartWeaponReload();
+                
+                StartCoroutine("ReloadVoicePlay"); // prevent air noise play on empty until this finishes
+            }
+        }
+        
+        if (shotsFired < maxShotsInMagazine)
+        {
+            // play flamethrower sound
+            theAudio.enabled = true;
+            theAudio.clip = laserFire;
+            theAudio.PlayOneShot(laserFire,0.5f);
 
-                // increment hit count for the object we have hit - but only if not dying
-                EnemyController theEnemyController = pointHit.rigidbody.gameObject.GetComponent<EnemyController>();
+            // shoot the flames
+            StartCoroutine(ShootFlamethrower());
 
-                if (theEnemyController)
+            // update display
+            theGameControllerScript.CountReload.SetText((maxShotsInMagazine - shotsFired).ToString());
+
+            // Does a raycast from the players transform in a forward facing direction
+            // the 'hit' variable returns the position of the hit on an object collider which we check to see if an enemy character
+            // or not, if it is, send a message to enemy object to do damage, and cause it to explode/die,
+            // Regardless, does a flame particle effect in transforms forward direction.
+
+            // set to repeat shot animation, as more likely to be firing repeatedly and single shot anim is too slow to activate!
+            theAnimator.SetBool("b_RepeatShot", true);
+
+            RaycastHit pointHit;
+
+            // Shoot the ray to see if we hit something!
+            // - the shoot point for flames (not this shoot point!) is an invisible box positioned exactly where animation of gun reaches, on the player object
+            Vector3 shootPoint = new Vector3(transform.position.x, 1.85f, transform.position.z); // shoot from 1.25f above ground
+
+
+            if (Physics.Raycast(shootPoint, transform.forward, out pointHit, rangeForHits))
+            {
+                // ok... we hit something in range with the raycast
+                //Debug.Log("Laser hit :  " + pointHit.transform.name);
+                //Debug.Log("Position of Ray cast Hit (x,y,z) is: x=   " + pointHit.point.x + ", y=   " + pointHit.point.y + ", z=   " + pointHit.point.z + ".");
+                //Debug.DrawRay(shootPoint, transform.TransformDirection(Vector3.forward) * pointHit.distance, Color.white, 2.0f);
+
+                // check who collided with us - if player update game manager with score        
+                if (pointHit.transform.CompareTag("Enemy Warrior"))
                 {
-                    // only add hit points if enemy not dying already!
-                    if (!theEnemyController.IsDying())
+                    // hit warrior (zombie) - update score in game manager
+                    theGameControllerScript.UpdatePlayerScore(pointsPerEnemyHitShot); // one point per hit
+
+                    // increment hit count for the object we have hit - but only if not dying
+                    EnemyController theEnemyController = pointHit.rigidbody.gameObject.GetComponent<EnemyController>();
+
+                    if (theEnemyController)
                     {
-                        // not dead so add a hit
-                         theEnemyController.AddHit();
+                        // only add hit points if enemy not dying already!
+                        if (!theEnemyController.IsDying())
+                        {
+                            // not dead so add a hit
+                            theEnemyController.AddHit();
+                        }
                     }
                 }
             }
-        }
 
-        // start coroutine to turn off Attack boolean to allow animator to do its animation completely
-        // without repeating (hopefully), but only turn it off after shotting gun if a dying state animation has finished playing
+            // start coroutine to turn off Attack boolean to allow animator to do its animation completely
+            // without repeating (hopefully), but only turn it off after shotting gun if a dying state animation has finished playing
 
-        // check if ended already
-        if (!theAnimator.GetCurrentAnimatorStateInfo(0).IsName("Z_FallingBack"))
-        {
-            StartCoroutine("TurnOffAttack");
+            // check if ended already
+            if (!theAnimator.GetCurrentAnimatorStateInfo(0).IsName("Z_FallingBack"))
+            {
+                StartCoroutine("TurnOffAttack");
+            }
         }
     }
 

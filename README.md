@@ -6,7 +6,8 @@
 #       What would a game developer do without the genius of artists, riggers, animators etc? 
 #
 #       "HQ Racing Car (model 1203)"                        V 1.0 - by Azerilo       (not used yet but in directory in case)
-
+#
+#       "3D Game Props"                                     v 1.0 - by Wissam El Hajj
 #       "3D Low Poly Car For Games (Tocus)"                 V 1.0 - by Ruslan
 #       "AllSky Free - 10 Sky / Skybox Set"                 V 1.0 - by RPG Whitelock
 #       "Awesome Game UI pack 9"                            V 1.0 - by RR Studio

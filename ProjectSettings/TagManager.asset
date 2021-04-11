@@ -68,6 +68,13 @@ TagManager:
   - Wall Lantern Flickering
   - Powerup Container
   - Game Exit Panel
+  - Dumpster
+  - Ground Pole
+  - Stop Sign
+  - Mailbox
+  - Fire Hydrant
+  - Shots Left
+  - Shots Reload Count
   layers:
   - Default
   - TransparentFX

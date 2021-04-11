@@ -87,13 +87,18 @@ public class MissileController : MonoBehaviour
             collision.gameObject.CompareTag("Building") ||
             collision.gameObject.CompareTag("Skyscraper") ||
             collision.gameObject.CompareTag("Stone Fence") ||
+            collision.gameObject.CompareTag("Dumpster") ||
+            collision.gameObject.CompareTag("Ground Pole") ||
+            collision.gameObject.CompareTag("Stop Sign") ||
+            collision.gameObject.CompareTag("Mailbox") ||
+            collision.gameObject.CompareTag("Fire Hydrant") ||
             collision.gameObject.CompareTag("Patio"))
         {
-            // missile has landed (or hit end barriers/ landed on a powerup/ trees
-            // or even bounced on a zombies head), so play bomb explosion at current position
+            // missile has landed (or hit end barriers/ landed on a powerup/ trees etc,
+            // or even bounced on a zombies head - hahaha), so play bomb explosion at current position
             // and allow another bomb launch if not too far down screen
 
-            if (transform.position.z > -100f)
+            if (transform.position.z > -110f)
             {
                 // ok to spawn another missile, so reset flag
                 if (theDroneControllerScript != null)

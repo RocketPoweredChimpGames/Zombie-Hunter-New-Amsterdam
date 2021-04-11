@@ -485,7 +485,7 @@ public class EnemyController : MonoBehaviour
             // we are attacking the player or have collided with him - same thing!
             //Debug.Log("Zombie attacking Player!\n");
             theGameControllerScript.UpdatePlayerHealth(hitDamage);
-            theGameControllerScript.StatusDisplay.SetText("Look out! There's a Zombie About!");
+            theGameControllerScript.StatusDisplay.SetText("LOOK OUT! THERE'S A ZOMBIE ABOUT!");
         }
     }
 

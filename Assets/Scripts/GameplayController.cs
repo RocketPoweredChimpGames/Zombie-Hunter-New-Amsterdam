@@ -49,22 +49,21 @@ public class GameplayController : MonoBehaviour
     public  AudioClip   criticalCountdownNoise; // played when 10% or under health 
     public  AudioClip   lifeLostNoise;          // life lost noise
     public  AudioClip   youReallyWannaGo;       // quit game ask
-    public AudioClip    goodbye;                // quit game confirmed
+    public  AudioClip   goodbye;                // quit game confirmed
 
     // spoken audio clips
-    public  AudioClip   gameOver;               // game over voice
+    public AudioClip    gameOver;               // game over voice
     public AudioClip    levelComplete;          // level completed voice
     public AudioClip    winner;                 // winner voice
     public AudioClip    hereWeGo;               // here we go game start voice
     public AudioClip    loseALifeVoice;         // lose a life voice
     public AudioClip    thatsNotGonnaDoIt;      // not in high score or zero score voice
-    //public AudioClip  highScoreBeaten;          // beaten high score / cheering
+    public AudioClip    the321Voice;            // gun reload countdown
 
     // audio components etc
     private AudioSource theAudioSource;         // audio source component
     private AudioMixer  theMixer;               // the audio mixer to output sound from listener to
     private string      _outputMixer;           // holds mixer struct
-    
 
     // all these text fields are associated by dragging field entries into gameplay controller entries in gui editor
     public TMP_Text     ScorePlayer;            // players score
@@ -75,6 +74,8 @@ public class GameplayController : MonoBehaviour
     public TMP_Text     EnemiesRemaining;       // remaining enemies this wave
     public TMP_Text     EnemiesKilledTotal;     // total enemies killed in game
     public TMP_Text     HighScore;              // player high score
+    public TMP_Text     ShotsLeftText;          // dual function displays "SHOTS LEFT" & "LOAD TIME" when shots used up
+    public TMP_Text     CountReload;            // dual function shots left & time to reload when expired
 
     private List<PowerUp> currentPowerups;      // current powerups on screen for grand finale destruction sequence
     private SpawnManager theSpawnManager;       // the spawn manager
@@ -151,7 +152,11 @@ public class GameplayController : MonoBehaviour
             // set with high score read from PlayerPrefs
             highScore = theHighScoresControllerScript.GetHighScore();
             HighScore.SetText(highScore.ToString());
-            
+
+            // set shots display to initial "100" & shots text
+            CountReload.SetText("100".ToString());
+            ShotsLeftText.SetText("SHOTS LEFT".ToString());
+
             // starts (or restarts) routine which periodically decays health (every 3s)
             if (IsHealthCountdownPaused())
             {
@@ -177,7 +182,7 @@ public class GameplayController : MonoBehaviour
         }
     }
 
-    IEnumerator ResetVolumeToNormal(AudioClip theClip)
+    public IEnumerator ResetVolumeToNormal(AudioClip theClip)
     {
         // simply yield and then increase volume to previous level
         yield return new WaitForSeconds(theClip.length);
@@ -653,12 +658,15 @@ public class GameplayController : MonoBehaviour
     // game quit sequence
     IEnumerator GameQuit()
     {
-        yield return new WaitForSeconds(theAudioSource.clip.length + 1f); // length plus 1 sec
-        
-        // show quit dialog
-        bool bLeave = EditorUtility.DisplayDialog("QUIT GAME", "ARE YOU SURE?", "YES", "NO");
+        // show game over dialog
+        GameObject theExitPanel = GameObject.FindGameObjectWithTag("Game Exit Panel");
 
-        if (bLeave)
+        // show the dialog which will terminate (or not) the application
+        theExitPanel.gameObject.GetComponent<GameOverDialogController>().Open();
+
+        yield return new WaitForSeconds(theAudioSource.clip.length); // delay till clip over
+        
+        /*if (bLeave)
         {
             // play 'goodbye' voice
             GetComponent<AudioSource>().outputAudioMixerGroup = theMixer.FindMatchingGroups(_outputMixer)[0];
@@ -677,17 +685,16 @@ public class GameplayController : MonoBehaviour
                 // pause game for now
                 PauseGame(false);
             }
-        }
+        }*/
     }
 
-    // final termination of game
+    /*// final termination of game
     IEnumerator GameFinished()
     {
         yield return new WaitForSeconds(theAudioSource.clip.length + 1f); // wait for end of goodbye voice
         Debug.Log("Game Final Termination!");
         Application.Quit();
-    }
-
+    }*/
 
     public void UpdatePlayerScore(int scoreChange)
     {
@@ -877,7 +884,8 @@ public class GameplayController : MonoBehaviour
         string blank = "YOU LOST A LIFE!";
 
         // find bonus health field
-        StatusDisplay.text = blank.ToString();
+        //StatusDisplay.text = blank.ToString();
+        PostStatusMessage(blank);
 
         if (playerLives <= 0)
         {
@@ -898,7 +906,7 @@ public class GameplayController : MonoBehaviour
             PlayCriticalCountdown(false); // turn off critical countdown sound
             PlayLifeLost();
 
-            StartCoroutine("ClearStatusDisplay"); // clears after a short delay
+          //  StartCoroutine("ClearStatusDisplay"); // clears after a short delay
         }
  
         LivesPlayer.text = playerLives.ToString(); // update number of lives
@@ -916,6 +924,7 @@ public class GameplayController : MonoBehaviour
     {
         // post passed message
         StatusDisplay.text = sStatusMsg.ToString();
+        StartCoroutine("ClearStatusDisplay"); // clear 4 secs later
     }
 
     public int GetPlayerHealth()
@@ -952,5 +961,46 @@ public class GameplayController : MonoBehaviour
         }
         // return either a match or null object
         return found;
+    }
+
+    // called by player controller to start weapon reload process
+    public void StartWeaponReload()
+    {
+        // starts weapon reload sequence
+        ShotsLeftText.SetText("TIME LEFT".ToString()); // set to reloading
+        CountReload.SetText("15".ToString());
+        PostStatusMessage("OUT OF FUEL - RELOADING!");
+        StartCoroutine("WeaponReloadTimer");
+    }
+
+    private int timerCountdown = 15; // reload time
+    private int elapsedSecs    = 0;
+
+    IEnumerator WeaponReloadTimer()
+    {
+        while (elapsedSecs < timerCountdown)
+        {
+            yield return new WaitForSeconds(1f);
+            elapsedSecs++;
+     
+            // update countdown display
+            CountReload.SetText((timerCountdown - elapsedSecs).ToString());
+
+            if ((timerCountdown - elapsedSecs) == 3)
+            {
+                // play 3-2-1 voice
+                _outputMixer = "Voice Up 10db"; // group to output the audio listener to
+                GetComponent<AudioSource>().outputAudioMixerGroup = theMixer.FindMatchingGroups(_outputMixer)[0];
+                theAudioSource.clip = the321Voice;
+                theAudioSource.PlayOneShot(the321Voice,1f);
+                StartCoroutine("ResetVolumeToNormal",the321Voice);
+            }
+        }
+
+        // timer exceeded - tell player controller gun reloaded
+        ShotsLeftText.SetText("SHOTS LEFT".ToString()); // set to available
+        CountReload.SetText("100".ToString());          // set to initial value
+        elapsedSecs = 0; // reset count
+        thePlayer.GetComponent<PlayerController>().SetGunAvailable(); // re available
     }
 }

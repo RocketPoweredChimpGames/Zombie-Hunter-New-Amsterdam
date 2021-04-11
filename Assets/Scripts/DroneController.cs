@@ -13,7 +13,6 @@ public class DroneController : MonoBehaviour
     private float droneSpeed = 0.25f;
     private float zBoundary  = -(210 +20f); // bottom boundary of play area (thats +- 210)
     
-    private bool bGameStarted   = false; // game started or not
     public bool missileLaunched = false;
 
     public GameObject missileToLaunch; // missile object to launch
@@ -74,9 +73,9 @@ public class DroneController : MonoBehaviour
     }
     IEnumerator DropABomb()
     {
-        yield return new WaitForSeconds(1.25f + Random.Range(0f, 1.5f));
+        yield return new WaitForSeconds(1.25f + Random.Range(0f, 1.25f));
             
-        // after 1.5s to 3 secs, we start to drop another bomb
+        // after 1.25s to 2.5 secs, we start to drop another bomb
         float xPos = transform.position.x;
         float zPos = transform.position.z;
 

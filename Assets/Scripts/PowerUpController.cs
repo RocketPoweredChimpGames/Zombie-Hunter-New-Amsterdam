@@ -266,8 +266,6 @@ public class PowerUpController : MonoBehaviour
 
                 // update player health by remaining powerup health points and any bonus
                 theGameControllerScript.UpdatePlayerHealth(powerUpHealthPoints + bonusHealth);
-
-                bonusHealth = 0;
             }
 
             // destroy lights around it
