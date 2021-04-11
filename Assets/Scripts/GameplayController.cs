@@ -992,7 +992,9 @@ public class GameplayController : MonoBehaviour
                 _outputMixer = "Voice Up 10db"; // group to output the audio listener to
                 GetComponent<AudioSource>().outputAudioMixerGroup = theMixer.FindMatchingGroups(_outputMixer)[0];
                 theAudioSource.clip = the321Voice;
-                theAudioSource.PlayOneShot(the321Voice,1f);
+                theAudioSource.volume = 1f;
+                theAudioSource.time = 0f;
+                theAudioSource.Play();
                 StartCoroutine("ResetVolumeToNormal",the321Voice);
             }
         }

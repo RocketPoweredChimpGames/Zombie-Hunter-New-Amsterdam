@@ -162,6 +162,8 @@ public class PlayerController : MonoBehaviour
         Physics.gravity = realGravity * gravityModifier;
 
         // set up laser (actually a flamethrower now) sound
+        _outputMixer = "No Change"; // group to output the audio listener to
+        GetComponent<AudioSource>().outputAudioMixerGroup = theMixer.FindMatchingGroups(_outputMixer)[0];
         GetComponent<AudioSource>().playOnAwake = false;
         GetComponent<AudioSource>().clip = laserFire;
         
@@ -279,6 +281,13 @@ public class PlayerController : MonoBehaviour
 
         theFlameThrower.SetActive(true); // set it active
 
+        // play flamethrower sound
+        theAudio.enabled = true;
+        _outputMixer = "No Change"; // group to output the audio listener to
+        GetComponent<AudioSource>().outputAudioMixerGroup = theMixer.FindMatchingGroups(_outputMixer)[0];
+        theAudio.clip = laserFire;
+        theAudio.PlayOneShot(laserFire, 1f);
+
         Quaternion shootAngle = transform.rotation;  // current rotation of player
         Vector3 shootPoint;
         
@@ -322,6 +331,21 @@ public class PlayerController : MonoBehaviour
         
         yield return new WaitForSeconds(walkMovement.length);
         bBreathingPlaying = false;
+    }
+
+
+    bool bGunShooting = false; // is gun currently shooting, delayed by coroutine to prevent spamming space key
+
+    IEnumerator DelayGunShot()
+    {
+        if  (!bGunShooting)
+        {
+            bGunShooting = true;
+            ShootGun();    
+        }
+
+        yield return new WaitForSeconds(0.2f);
+        bGunShooting = false;
     }
 
     // Update is called once per frame
@@ -400,16 +424,19 @@ public class PlayerController : MonoBehaviour
                 //playerVelocity.y += gravityValue * Time.deltaTime;
                 //controller.Move(playerVelocity * Time.deltaTime);
 
-                // check boundaries for player movement
+                /* // check boundaries for player movement
                 if (horizontalInput != 0 || verticalInput != 0)
                 {
+                    // REMOVED THIS BIT as adding a Transport Terminal outside the right boundary of the game!
                     // keep player within playfield
                     if (transform.position.z > boundaryZ)
                     {
                         Vector3 reposTransform = new Vector3(transform.position.x, 0f, boundaryZ - 0.75f);
                         transform.position = reposTransform;
                     }
-                    else if (transform.position.z < -boundaryZ)
+                    else 
+                    
+                    if (transform.position.z < -boundaryZ)
                     {
                         Vector3 reposTransform = new Vector3(transform.position.x, 0f, -(boundaryZ - 0.75f));
                         transform.position = reposTransform;
@@ -424,7 +451,7 @@ public class PlayerController : MonoBehaviour
                         Vector3 reposTransform = new Vector3(-(boundaryX - 0.75f), 0f, transform.position.z);
                         transform.position = reposTransform;
                     }
-                }
+                }*/
 
                 // change animation state to correct one dependent on movement direction
                 // can ONLY be one state at a time as no move forward/left, back/left, forward/right, backward/right animations
@@ -493,15 +520,21 @@ public class PlayerController : MonoBehaviour
                     // Shoot the flamethrower gun / do particle effects & gun noise - if available
                     if (bGunAvailable)
                     {
-                        ShootGun();
-                        bReloadVoice = false;
+                        if (!bGunShooting)
+                        {
+                            // gun has finished shooting - now allow it again
+                            StartCoroutine("DelayGunShot");
+                        }
+
+                        //ShootGun();
+                        bReloadVoice = false; // allow "empty gun" noise now as reload voice has just played
                     }
                     else 
                     {
                         if (bReloadVoice)
                         {
                             // now play "empty air" noise as reload voice has finished playing
-                            _outputMixer = "Voice Up 5db"; // group to output the audio listener to
+                            _outputMixer = "Voice Up 5db"; // group to output the audio `istener to
                             GetComponent<AudioSource>().outputAudioMixerGroup = theMixer.FindMatchingGroups(_outputMixer)[0];
                             theAudio.clip = emptyGunNoise;
                             theAudio.PlayOneShot(emptyGunNoise, 0.7f);
@@ -840,6 +873,9 @@ public class PlayerController : MonoBehaviour
 
     IEnumerator ReloadVoicePlay()
     {
+        yield return new WaitForSeconds(1.5f); // give a little time for any gun sounds to finish
+
+        // play reload
         theAudio.enabled = true;
         theAudio.clip    = reloadVoice;
         theAudio.volume  = .8f;
@@ -870,11 +906,6 @@ public class PlayerController : MonoBehaviour
         
         if (shotsFired < maxShotsInMagazine)
         {
-            // play flamethrower sound
-            theAudio.enabled = true;
-            theAudio.clip = laserFire;
-            theAudio.PlayOneShot(laserFire,0.5f);
-
             // shoot the flames
             StartCoroutine(ShootFlamethrower());
 
@@ -893,7 +924,7 @@ public class PlayerController : MonoBehaviour
 
             // Shoot the ray to see if we hit something!
             // - the shoot point for flames (not this shoot point!) is an invisible box positioned exactly where animation of gun reaches, on the player object
-            Vector3 shootPoint = new Vector3(transform.position.x, 1.85f, transform.position.z); // shoot from 1.25f above ground
+            Vector3 shootPoint = new Vector3(transform.position.x, 1.75f, transform.position.z); // shoot from 1.25f above ground
 
 
             if (Physics.Raycast(shootPoint, transform.forward, out pointHit, rangeForHits))

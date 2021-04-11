@@ -15,6 +15,8 @@
 #       "Construction Vehicles"                             V 1.1 - by Poly Grunt
 #       "Grass Flowers Pack Free"                           V 1.0 - by ALP8310  
 #       "High Quality Bricks & Walls"                       V 1.0 - by Alessio Regalbuto
+#       "HQ Lion statue"                                    V 1.0 - by Not_Lonely
+#       "Kiosk"                                             V 1.1 - by Vis Games
 #       "Korea Native Trees"                                first - by Yongho Kim     
 #       "low poly car"                                      V 1.3 - by Abdul Rahim
 #       "Low Poly European City"                            V 1.0 - by Karboosx   
