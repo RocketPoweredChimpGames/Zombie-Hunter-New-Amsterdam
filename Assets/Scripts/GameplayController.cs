@@ -47,7 +47,14 @@ public class GameplayController : MonoBehaviour
     public  AudioClip   countdownNoise;         // played when less than 60% (or whatever changed to) health
     public  AudioClip   criticalCountdownNoise; // played when 10% or under health 
     public  AudioClip   lifeLostNoise;          // life lost noise
-    
+
+    // spoken audio clips
+    public  AudioClip   gameOver;               // game over voice
+    public AudioClip    levelComplete;          // level completed voice
+    public AudioClip    winner;                 // winner voice
+    public AudioClip    hereWeGo;               // here we go game start voice
+    public AudioClip    loseALifeVoice;         // lose a life voice
+
     // add later
     //public AudioClip  cheeringNoiseHighScore; // cheering when highscore beaten
 
@@ -160,6 +167,10 @@ public class GameplayController : MonoBehaviour
                 thePlayer.GetComponent<PlayerController>().SetAnotherPanelInControl(false);
             }
 
+            // play game start voice
+            theAudioSource.clip   = hereWeGo;
+            theAudioSource.PlayOneShot(theAudioSource.clip, 1f); // play it
+
             // set day box initially
             //UnityEngine.RenderSettings.skybox = theDaySkybox;
         }
@@ -203,6 +214,10 @@ public class GameplayController : MonoBehaviour
         // display game over on screen, accepts any high score entry before
         bGameOver = true;
 
+        // play life lost voice
+        theAudioSource.clip = gameOver;
+        theAudioSource.PlayOneShot(theAudioSource.clip, 1f); // play it
+
         // stop the decay health co-routine from doing anything
         SetHealthCountdownPaused(true); // flag checked inside coroutine
 
@@ -233,10 +248,13 @@ public class GameplayController : MonoBehaviour
 
         string blank = "GAME OVER!";
         StatusDisplay.text = blank.ToString();
-        
+
         // stop animations and music
+        StartCoroutine("WaitForEndGameVoice");
+        
         Time.timeScale      = 0f;
-        AudioListener.pause = true;
+        
+        //AudioListener.pause = true;
 
         // Show the highscores table
         ShowHighScores();
@@ -246,7 +264,11 @@ public class GameplayController : MonoBehaviour
 
         if (playerScore >0 && theHighScoresControllerScript.GoodEnoughForHighscores(playerScore))
         {
-            //  Add score to table if high enough to go in
+            // plays "Winner" voice as high enough for table
+            theAudioSource.clip = winner;
+            theAudioSource.PlayOneShot(theAudioSource.clip, 1f); // play it
+
+            //  Add score to highscore table
             theHighScoresControllerScript.AddHighscoreEntryWithName(playerScore);      // opens highscore name entry panel
             theHighScoresControllerScript.SetFocusToEntryField();
         }
@@ -259,6 +281,15 @@ public class GameplayController : MonoBehaviour
                 GameObject.Find("Player").GetComponent<PlayerController>().ToggleNightMode();
             }
         }
+    }
+
+    // Delay game finish until audio clip finishes
+    IEnumerator WaitForEndGameVoice()
+    {
+        AudioSource aSource = GetComponent<AudioSource>();
+
+        yield return new WaitForSeconds(aSource.clip.length);
+        AudioListener.pause = true;
     }
 
     public bool IsGameOver()
@@ -288,9 +319,16 @@ public class GameplayController : MonoBehaviour
         // update display or start next wave
         if (enemiesKilledThisWave >= maxEnemiesPerWave)
         {
+            
+            // play level completed voice
+            theAudioSource.clip = levelComplete;
+            theAudioSource.PlayOneShot(theAudioSource.clip, 1f); // play it
+
             // start next wave
             enemyWaveNumber++;
             StartWaveNumber(enemyWaveNumber);
+
+            
         }
         else
         {
@@ -633,9 +671,11 @@ public class GameplayController : MonoBehaviour
     void PlayLifeLost()
     {
         // play life lost noise
-        theAudioSource.volume = 50;
-        theAudioSource.time = 0f;
-        theAudioSource.PlayOneShot(lifeLostNoise);
+        theAudioSource.PlayOneShot(lifeLostNoise, 0.3f);
+
+        // play life lost voice
+        theAudioSource.clip = loseALifeVoice;
+        theAudioSource.PlayOneShot(theAudioSource.clip, 1f); // play it
     }
 
 

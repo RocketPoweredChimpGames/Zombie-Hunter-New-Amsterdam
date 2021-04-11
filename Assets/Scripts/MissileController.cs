@@ -120,7 +120,7 @@ public class MissileController : MonoBehaviour
         // play the explosion sound and wait for it to finish
         GetComponent<AudioSource>().clip        = missileExplosion;
         GetComponent<AudioSource>().playOnAwake = true;
-        GetComponent<AudioSource>().volume      = 0.3f;
+        GetComponent<AudioSource>().volume      = 0.25f;
         GetComponent<AudioSource>().Play(); 
         
         //  play explosion particle effect

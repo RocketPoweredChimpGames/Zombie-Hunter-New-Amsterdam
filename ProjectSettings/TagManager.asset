@@ -60,6 +60,7 @@ TagManager:
   - Instructions Panel
   - Crosshair Target
   - Search Spotlight
+  - Glowing Powerup
   layers:
   - Default
   - TransparentFX

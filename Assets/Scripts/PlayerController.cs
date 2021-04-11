@@ -50,7 +50,7 @@ public class PlayerController : MonoBehaviour
     private int boundaryX = 208;  // left & right (+-) boundaries on X axis from centre (0,0,0)
 
     // night mode toggle
-    bool bNightModeOn = false;
+    public bool bNightModeOn = false;
 
     // bool set by panels to stop player input going ahead here until they say so
     bool bAnotherPanelInControl = false;
@@ -558,6 +558,29 @@ public class PlayerController : MonoBehaviour
                 bulb.SetActive(true);
             }
 
+            // turn on glowing powerups - (these can be destroyed dynamically elsewhere)
+            // by each PowerupController, so check for this
+
+            GameObject[] glowingPowerups = GameObject.FindGameObjectsWithTag("Power Up"); // current (at this millisecond!) ones
+
+            foreach (GameObject glowing in glowingPowerups)
+            {
+                // could have been destroyed on the C++ native side as Unity's Destroy() actually just
+                // deletes the C++ object behind it and as C# uses the CLR managed garbage collection, it just
+                // pretends it's deleted/'gone' and lets the C# garbage collector delete it when all refs are gone
+                // So, always CHECK if null first!
+             
+                if (glowing != null)
+                {
+                    // set glowing light to 'on'
+                    glowing.GetComponent<PowerUpController>().SetPowerupGlowing(true);
+                }
+                else
+                {
+                    Debug.Log("Deleted glowing Powerup - in turn on");
+                }
+            }
+
             // Turn on Headlamp
             theHeadLamp.SetActive(true);
         }
@@ -565,9 +588,10 @@ public class PlayerController : MonoBehaviour
         {
             // switch to daytime mode
             bNightModeOn = !bNightModeOn;
-
+            UnityEngine.RenderSettings.skybox = daySkyBox;
             UnityEngine.RenderSettings.ambientIntensity    = 1f; // Will make it light
             UnityEngine.RenderSettings.reflectionIntensity = 1f; // will make it light
+            UnityEngine.RenderSettings.skybox = daySkyBox;
 
             // turn off searchlights
             GameObject.Find("SearchlightController").GetComponent<SearchlightController>().EnableSearchlights(false);
@@ -578,6 +602,30 @@ public class PlayerController : MonoBehaviour
                 bulb.SetActive(false);
             }
 
+            // turn off glowing powerups - (these can be destroyed dynamically elsewhere)
+            // by each PowerupController, so check for this
+
+            GameObject[] glowingPowerups = GameObject.FindGameObjectsWithTag("Power Up"); // current (at this millisecond!) ones
+
+            foreach (GameObject glowing in glowingPowerups)
+            {
+                // could have been destroyed on the C++ native side as Unity's Destroy() actually just
+                // deletes the C++ object behind it and as C# uses the CLR managed garbage collection, it just
+                // pretends it's deleted/'gone' and lets the C# garbage collector delete it when all refs are gone
+                // So, always CHECK if null first!
+
+                if (glowing != null)
+                {
+                    // set glowing light to 'off'
+                    glowing.GetComponent<PowerUpController>().SetPowerupGlowing(false);
+                }
+                else
+                {
+                    Debug.Log("Deleted glowing Powerup - in turn off");
+                }
+            }
+
+            // reset night to day!
             UnityEngine.RenderSettings.skybox = daySkyBox;
             theLight.intensity = 1f;
 

@@ -8,20 +8,22 @@ using UnityEngine.UIElements;
 
 public class PowerUpController : MonoBehaviour
 {
-    private GameObject theGameController;               // GameplayController object in scene
+    private GameObject         theGameController;       // GameplayController object in scene
     private GameplayController theGameControllerScript; // the script attached to this object
+    private PlayerController   thePlayerControlScript;  // player script for checking night mode
+    private Light[]            theLights;               // array of light objects for activate/deactivate on night mode change
 
-    private float lastUpdateTime;            // time this was last updated
-    private float startTime;                 // time this first appeared on screen
-    private float decayPeriod       = 10.0f; // decays a bit every 10 secs
-    private int decayCount          = 0;     // number of times energy pill has decayed (deleted on maxDecay)
-    private int powerUpPoints       = 5;     // score value - every power up has 5 points
-    private int powerUpHealthPoints = 3;     // health points for collecting this powerup
+    private float lastUpdateTime;              // time was last updated
+    private float startTime;                   // time first appeared on screen
+    private float decayPeriod         = 10.0f; // decays a bit every 10 secs
+    private int   decayCount          = 0;     // number of times powerup has decayed (deleted on points reaching 0)
+    private int   powerUpPoints       = 5;     // score value - every power starts with 5 points
+    private int   powerUpHealthPoints = 3;     // health points given for collecting this powerup
 
-    private bool hitByPlayer        = false;
+    private bool  hitByPlayer        = false;
 
     public TMP_Text  statusDisplayField;
-    public AudioClip powerBoing; // audio clip to play
+    public AudioClip powerBoing;               // audio clip to play on "collecting" powerup
     
     // Start is called before the first frame update
     void Start()
@@ -37,6 +39,15 @@ public class PowerUpController : MonoBehaviour
             UnityEngine.Debug.LogError("Didn't find object tagged GameController, check tag in Unity");
         }
 
+        // find player script
+        thePlayerControlScript = GameObject.Find("Player").GetComponent<PlayerController>();
+
+        if (thePlayerControlScript == null)
+        {
+            // cant find it
+            UnityEngine.Debug.Log("Can't find Player script from within Powerup controller");
+        }
+
         lastUpdateTime = Time.realtimeSinceStartup; // start time we will increment later in update()
         startTime      = lastUpdateTime;
 
@@ -50,6 +61,30 @@ public class PowerUpController : MonoBehaviour
 
         // find bonus health field
         statusDisplayField.text = blank.ToString();
+
+        theLights = GetComponentsInChildren<Light>(); // get light objects
+
+        // check if we should illuminate the powerup
+        if (thePlayerControlScript)
+        {
+            // illuminate (or not) all the light gameobjects inside
+
+            foreach (Light current in theLights)
+            {
+                // illuminate if night mode, switch off otherwise
+               current.enabled = thePlayerControlScript.IsNightMode();
+            }
+        }
+    }
+
+    public void SetPowerupGlowing(bool bGlow)
+    {
+        // illuminate (or not) all the light gameobjects inside
+        foreach (Light current in theLights)
+        {
+            // illuminate if night mode, switch off otherwise
+            current.enabled = bGlow;
+        }
     }
 
     // Update is called once per frame
@@ -164,7 +199,7 @@ public class PowerUpController : MonoBehaviour
             {
                 // player got a bonus
                 string bonus = bonusHealth.ToString();
-                string blank = "You're Lucky! Bonus Health Points! " + bonus +"%";
+                string blank = "YOU'RE LUCKY! BONUS HEALTH POINTS " + bonus +"%";
                 
                 // find bonus health field
                 statusDisplayField.text = blank.ToString();

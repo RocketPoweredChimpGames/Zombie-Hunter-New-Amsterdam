@@ -204,6 +204,7 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: 9395a3b8c4db0184f80dee450e9b690f, type: 3}
   m_Name: 
   m_EditorClassIdentifier: 
+  statusDisplayField: {fileID: 0}
   powerBoing: {fileID: 8300000, guid: e9584ad2375349a499b0a98016f6eee6, type: 3}
 --- !u!114 &634146936119623324
 MonoBehaviour:

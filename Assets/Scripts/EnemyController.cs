@@ -258,15 +258,15 @@ public class EnemyController : MonoBehaviour
             // player within range / or we have been fired upon - let's attack
             SetDestination(thePlayer); // set player object as destination - as player will be moving around to avoid us
 
-            if (changeState == false)
+            if (changeState == false && !IsDying())
             {
-                // change animation state from static to move forward
-                theAnimator.SetFloat("f_Speed", 1.1f);
+                // change animation state from static to run
+                theAnimator.SetFloat("f_Speed", 2.1f);
                 theAnimator.SetBool("b_moveForward", true);
                 changeState = true;
             }
 
-            if ((Vector3.Distance(thePlayer.transform.position, transform.position) <= 2) && !attackingPlayer)
+            if ((Vector3.Distance(thePlayer.transform.position, transform.position) <= 2) && !attackingPlayer && !IsDying())
             {
                 Debug.Log("attacking player! - distance between" + Vector3.Distance(thePlayer.transform.position, transform.position));
 
@@ -282,17 +282,18 @@ public class EnemyController : MonoBehaviour
                 // only decrease player health every few seconds from startAttackTime
                 if (Time.realtimeSinceStartup + healthPeriod >= startAttackTime) 
                 {
-                  //  startAttackTime = Time.realtimeSinceStartup;
-                  //  theGameControllerScript.UpdatePlayerHealth(hitDamage);
+                  startAttackTime = Time.realtimeSinceStartup;
+                  theGameControllerScript.UpdatePlayerHealth(hitDamage);
                 }
             }
 
-            if (Vector3.Distance(thePlayer.transform.position, transform.position) > 2.1 && attackingPlayer)
+            if (Vector3.Distance(thePlayer.transform.position, transform.position) > 2.1 && attackingPlayer && !IsDying())
             {
-                // no longer in attack range of player
-                theAnimator.SetFloat("f_Speed", 2.1f);
+                // not in attack range of player OR dead!
+                //theAnimator.SetFloat("f_Speed", 2.1f);
                 theAnimator.SetBool("b_Attack", false);
                 attackingPlayer = false;
+                changeState     = false; // allow it to go to run state again on next update()
             }
         }
 
@@ -448,20 +449,21 @@ public class EnemyController : MonoBehaviour
         // increment hits & destroy enemy if equals maximum
         hitCount++;
 
-        if (hitCount >= maxHits && !dyingPlaying)
+        if (hitCount >= maxHits)
         {
-            // play death sound and destroy
-            dyingPlaying = true;
-            DyingState();
+            if (!dyingPlaying)
+            {
+                // play death sound and destroy
+                dyingPlaying = true;
+                DyingState();
+            }
         }
     }
     
     public void DyingState()
     {
-        // Plays dying noise, changes animation state, and starts coroutine to delete when finished animation
-
-        // turn off collider so don't add more damage to player, or accept any more hit damage 
-        // as now dead
+        // Play dying noise, change animation state, and starts coroutine to delete when finished animation
+        // turn off collider so don't add more damage to player as now dead
         Collider theCollider = gameObject.GetComponent<Collider>();
 
         if (theCollider)
@@ -479,9 +481,15 @@ public class EnemyController : MonoBehaviour
         // check if ended already
         if (!theAnimator.GetCurrentAnimatorStateInfo(0).IsName("Z_FallingBack"))
         {
-            theAnimator.SetFloat("f_Speed", 0f);
-            theAnimator.SetBool("b_moveForward", false);
-            theAnimator.SetBool("b_isShot", true);
+            //theAnimator.SetFloat("f_Speed", 0f);
+            //theAnimator.SetBool("b_moveForward", false);
+            bool isLooping = theAnimator.GetCurrentAnimatorStateInfo(0).loop;
+
+            Debug.Log("Animator looping state  = " + (isLooping ? "is true!" : "is false!"));
+
+            theAnimator.SetBool("b_Attack", false); // prevent transition to attack
+            theAnimator.SetBool("b_isShot", true);  // set dead
+            Debug.Log("Setting Dying Playing!");
         }
             
         // set & play audio clip
@@ -503,10 +511,10 @@ public class EnemyController : MonoBehaviour
         yield return new WaitForSeconds(gameObject.GetComponent<Animator>().GetCurrentAnimatorStateInfo(0).length);
 
         // now has been given chance for animation, so prevent it repeating
-        theAnimator.SetBool("b_isShot", false);
+        theAnimator.SetBool("b_IsShot", false);
         theAnimator.SetBool("b_isDead", true);
 
-        yield return new WaitForSeconds(0.5f);
+        yield return new WaitForSeconds(0.1f);
 
         // if you ever put an object in a parent object hierarchy must destroy parent container object to destroy child too!
         // but now changed back, so just destroy object!
