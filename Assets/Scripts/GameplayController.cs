@@ -54,9 +54,8 @@ public class GameplayController : MonoBehaviour
     public AudioClip    winner;                 // winner voice
     public AudioClip    hereWeGo;               // here we go game start voice
     public AudioClip    loseALifeVoice;         // lose a life voice
-
-    // add later
-    //public AudioClip  cheeringNoiseHighScore; // cheering when highscore beaten
+    public AudioClip    thatsNotGonnaDoIt;      // not in high score or zero score voice
+    //public AudioClip  highScoreBeaten;          // beaten high score / cheering
 
     private AudioSource theAudioSource;         // audio source component
 
@@ -119,7 +118,7 @@ public class GameplayController : MonoBehaviour
     }
 
     // StartGame() ALWAYS starts the countdown, the Coroutine is always running (and checks this flag), 
-    // end game sets flag to stop countdown, so initial value must always be set to true here!
+    // end game sets flag to stop countdown decaying health, so initial value must always be set to TRUE here!
     public bool bHealthCountdownPaused = true; // flag checked by HealthCountdown Coroutine periodically
 
     public void SetHealthCountdownPaused(bool bStart)
@@ -140,25 +139,12 @@ public class GameplayController : MonoBehaviour
         {
             // starts Spawnmanager spawning on next update(), and also
             // enables Player controls in player controller
-
-            //bGameOver       = false; // not game over
-            bGameStarted    = true;  // start game
-            //enemyWaveNumber = 1;     // first wave
-
-            // re-start animations and music again as could have come from an end game situation
-            //Time.timeScale = 1f;           // allow animations
-            //AudioListener.pause = false;   // allow audio
+            //bGameStarted    = true;  // start game - done in setgamedefaults() now
 
             // set with high score read from PlayerPrefs
             highScore = theHighScoresControllerScript.GetHighScore();
             HighScore.SetText(highScore.ToString());
-
-            //PauseGame(false); // turn off game pause just in case
-
-            // update player display
-            //StartWaveNumber(enemyWaveNumber);
-            //EnemiesKilledTotal.SetText(totalEnemiesKilled.ToString());
-
+            
             // starts (or restarts) routine which periodically decays health (every 3s)
             if (IsHealthCountdownPaused())
             {
@@ -168,11 +154,12 @@ public class GameplayController : MonoBehaviour
             }
 
             // play game start voice
+            AudioListener.pause   = false; // enable audio (could have been disabled at end game)
             theAudioSource.clip   = hereWeGo;
             theAudioSource.PlayOneShot(theAudioSource.clip, 1f); // play it
 
-            // set day box initially
-            //UnityEngine.RenderSettings.skybox = theDaySkybox;
+            // reset to start of main game background music clip
+            thePlayer.GetComponentInChildren<Camera>().GetComponent<AudioSource>().time = 30f;
         }
     }
 
@@ -214,9 +201,7 @@ public class GameplayController : MonoBehaviour
         // display game over on screen, accepts any high score entry before
         bGameOver = true;
 
-        // play life lost voice
-        theAudioSource.clip = gameOver;
-        theAudioSource.PlayOneShot(theAudioSource.clip, 1f); // play it
+        
 
         // stop the decay health co-routine from doing anything
         SetHealthCountdownPaused(true); // flag checked inside coroutine
@@ -246,15 +231,17 @@ public class GameplayController : MonoBehaviour
             Destroy(drone);
         }
 
-        string blank = "GAME OVER!";
-        StatusDisplay.text = blank.ToString();
+        string status      = "GAME OVER!";
+        StatusDisplay.text = status.ToString();
+        
+        // play game over voice
+        theAudioSource.clip = gameOver;
+        theAudioSource.PlayOneShot(theAudioSource.clip, 1f); // play it
 
-        // stop animations and music
+        // wait for voice to finish before stopping audio
         StartCoroutine("WaitForEndGameVoice");
         
-        Time.timeScale      = 0f;
-        
-        //AudioListener.pause = true;
+        //Time.timeScale = 0f; // stop animating
 
         // Show the highscores table
         ShowHighScores();
@@ -264,10 +251,6 @@ public class GameplayController : MonoBehaviour
 
         if (playerScore >0 && theHighScoresControllerScript.GoodEnoughForHighscores(playerScore))
         {
-            // plays "Winner" voice as high enough for table
-            theAudioSource.clip = winner;
-            theAudioSource.PlayOneShot(theAudioSource.clip, 1f); // play it
-
             //  Add score to highscore table
             theHighScoresControllerScript.AddHighscoreEntryWithName(playerScore);      // opens highscore name entry panel
             theHighScoresControllerScript.SetFocusToEntryField();
@@ -283,13 +266,36 @@ public class GameplayController : MonoBehaviour
         }
     }
 
-    // Delay game finish until audio clip finishes
+    // Delay audio cutoff at game end until game over audio clip finishes
     IEnumerator WaitForEndGameVoice()
     {
         AudioSource aSource = GetComponent<AudioSource>();
 
-        yield return new WaitForSeconds(aSource.clip.length);
-        AudioListener.pause = true;
+        yield return new WaitForSeconds(aSource.clip.length); // wait for game over voice to finish
+
+        if (playerScore > 0 && theHighScoresControllerScript.GoodEnoughForHighscores(playerScore))
+        {
+            // plays "Winner" voice as high enough for table
+            theAudioSource.clip = winner;
+            theAudioSource.PlayOneShot(theAudioSource.clip, 1f); // play it
+            yield return new WaitForSeconds(winner.length +1f);
+
+            Time.timeScale = 0f;        // stop animating
+            AudioListener.pause = true; // stop sound
+
+            // can allow game over theme to play with an clip ignorepause or something - google it!
+        }
+        else
+        {
+            // play not good enough voice
+            theAudioSource.clip = thatsNotGonnaDoIt;
+            theAudioSource.PlayOneShot(theAudioSource.clip, 1f); // play it
+
+            yield return new WaitForSeconds(thatsNotGonnaDoIt.length +1f); // add a bit extra
+
+            Time.timeScale      = 0f;   // stop animating
+            AudioListener.pause = true; // stop sound
+        }
     }
 
     public bool IsGameOver()
@@ -597,7 +603,7 @@ public class GameplayController : MonoBehaviour
             // display critical health message
             TMP_Text statusDisp = GameObject.FindGameObjectWithTag("Status Display").GetComponent<TMP_Text>();
             
-            string blank = "Health Critical!";
+            string blank = "HEALTH CRITICAL!";
 
             statusDisp.text = blank.ToString();
         }
@@ -605,7 +611,7 @@ public class GameplayController : MonoBehaviour
         if (playerHealth <= 10)
         {
             // imminent death state
-            string blank = "Death Imminent - Get Powerups Now!";
+            string blank = "DEATH IMMINENT - GET POWERUPS NOW!";
 
             StatusDisplay.text = blank.ToString(); // display critical message
             PlayCriticalCountdown(true); // play critical noise
@@ -627,7 +633,7 @@ public class GameplayController : MonoBehaviour
         // play health countdown music
         if (playIt == true && !playingCountdown)
         {
-            string blank = "Collect more Powerups!";
+            string blank = "COLLECT POWERUPS!";
             StatusDisplay.SetText(blank.ToString());
 
             // not playing it, so play it
@@ -667,9 +673,19 @@ public class GameplayController : MonoBehaviour
             playingCountdown = false;
         }
     }
-    
+
+    AudioSource theSource;
     void PlayLifeLost()
     {
+        // temporarily reduce game volume (the source is attached to Players Main Camera)
+        
+        theSource      = thePlayer.GetComponentInChildren<Camera>().GetComponent<AudioSource>();
+        float myVolume = theSource.volume;
+
+        theSource.volume = 0;// /= 5; // 
+
+        StartCoroutine("IncreaseVolumeToPrevious");
+
         // play life lost noise
         theAudioSource.PlayOneShot(lifeLostNoise, 0.3f);
 
@@ -678,6 +694,14 @@ public class GameplayController : MonoBehaviour
         theAudioSource.PlayOneShot(theAudioSource.clip, 1f); // play it
     }
 
+    IEnumerator IncreaseVolumeToPrevious()
+    {
+        // simply yield and then increase volume to previous level
+        yield return new WaitForSeconds(lifeLostNoise.length+ loseALifeVoice.length);
+
+        // now return it to normal level
+        theSource.volume = .26f; //*= 5;
+    }
 
     private void LoseALife()
     {
@@ -690,7 +714,7 @@ public class GameplayController : MonoBehaviour
         // decrease player lives, reset health to full if some left, turn off countdown noise
         playerLives += livesLost;
 
-        string blank = "You Lost a Life!";
+        string blank = "YOU LOST A LIFE!";
 
         // find bonus health field
         StatusDisplay.text = blank.ToString();

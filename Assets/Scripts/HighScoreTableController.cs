@@ -385,7 +385,11 @@ public class HighScoreTableController : MonoBehaviour
         bWaitingForUsernameInput = false;
 
         // reset entry field
-        UsernameInputField.gameObject.GetComponentInChildren<TMP_InputField>().text = "            "; // 12 spaces
+        TMP_InputField userName = UsernameInputField.gameObject.GetComponentInChildren<TMP_InputField>();
+        if (userName != null)
+        {
+            userName.text = "            "; // 12 spaces
+        }
     }
 
     private void DeleteAllHighScores()

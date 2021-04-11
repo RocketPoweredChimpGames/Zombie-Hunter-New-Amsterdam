@@ -63,8 +63,8 @@ public class SearchlightController : MonoBehaviour
         // in Unity, so not simple to just say move from X degrees to Y degrees!
         theSearchlights = new List<SearchLight>()
                               {
-                                 new SearchLight {name = "HQ Search 1", startYAxisAngle = 0f,  endYAxisAngle = 30f, goingRight = true},
-                                 new SearchLight {name = "HQ Search 3", startYAxisAngle = 20f, endYAxisAngle = 10f, goingRight = true}
+                                 new SearchLight {name = "HQ Search 1", startYAxisAngle = 0f,  endYAxisAngle = 23f, goingRight = true},
+                                 new SearchLight {name = "HQ Search 3", startYAxisAngle = 20f, endYAxisAngle = 7f,  goingRight = true}
                               };
 
         theActualLights = new List<Light>();
@@ -121,7 +121,7 @@ public class SearchlightController : MonoBehaviour
                         theLight.transform.RotateAround(
                                        new Vector3(theLight.transform.position.x, theLight.transform.position.y, theLight.transform.position.z),
                                                    Vector3.up,
-                                                   -(endAngle - currentYAngle) * Time.deltaTime * 0.12f);
+                                                   -(endAngle - currentYAngle) * Time.deltaTime * 0.1f);
                         //UnityEngine.Debug.Log("current Angle = " + (currentYAngle) + ", End Angle = "+ endAngle);
                     }
                     else
@@ -141,7 +141,7 @@ public class SearchlightController : MonoBehaviour
                         theLight.transform.RotateAround(
                                       new Vector3(theLight.transform.position.x, theLight.transform.position.y, theLight.transform.position.z),
                                                   Vector3.up, 
-                                                  -(180 - (currentYAngle - startAngle)) * Time.deltaTime * 0.12f);
+                                                  -(180 - (currentYAngle - startAngle)) * Time.deltaTime * 0.1f);
                     }
                     else
                     {

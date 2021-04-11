@@ -61,6 +61,7 @@ TagManager:
   - Crosshair Target
   - Search Spotlight
   - Glowing Powerup
+  - Wall
   layers:
   - Default
   - TransparentFX

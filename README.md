@@ -13,6 +13,7 @@
 #       "Church 3D"                                         V 1.0 - by Andrei CG
 #       "Construction Vehicles"                             V 1.1 - by Poly Grunt
 #       "Grass Flowers Pack Free"                           V 1.0 - by ALP8310  
+#       "High Quality Bricks & Walls"                       V 1.0 - by Alessio Regalbuto
 #       "Korea Native Trees"                                first - by Yongho Kim     
 #       "low poly car"                                      V 1.3 - by Abdul Rahim
 #       "Low Poly European City"                            V 1.0 - by Karboosx   
@@ -23,10 +24,13 @@
 #       "SciFi Enemies and Vehicles"                        V 1.0 - by Popup Asylum
 #       "Sci Fi Warrior PBR HP Polyart"                     V 1.2 - by Dungeon Mason
 #       "Simple Gems Ultimate Animated Customizable Pack"   V 1.1 - by Aurynsky 
+#       "Spotlight and Structure"                           V 1.1 - by Spacezeta
 #       "Stone Fence"                                       V 1.0 - by Ben Droste 
 #       "Stylized Water Material"                           V 1.0 - by LowlyPoly
 #       "Tombstone Mega Pack"                               V 1.0 - by PolySquid
 #       "Unity Particle Pack"                               V 1.6 - by Unity Technologies
+#       "Urban Night Sky"                                   V 1.0 - by Kendall Weaver
+#       "Yughues Free Cobble Materials"                     V 1.0 - by Nobiax / Yughues
 #       "Yughues Free Concrete Materials"                   V 1.0 - by Noblax / Yughues
 #       "Yughues Free Metal Materials"                      V 1.1 - by Nobiax / Yughues
 #       "Zombie"                                            V 1.2 - by PxItiger                                     

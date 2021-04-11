@@ -166,6 +166,8 @@ public class PowerUpController : MonoBehaviour
         else return false;
     }
 
+    private bool bHitFirstTime = true; // prevent multiple collisions adding extra points
+
     private void OnCollisionEnter(Collision collision)
     {
         // check who collided with us - if it's the player tell game manager        
@@ -184,35 +186,40 @@ public class PowerUpController : MonoBehaviour
             // update score in game manager
             theGameControllerScript.UpdatePlayerScore(powerUpPoints);
 
-            string points = powerUpPoints.ToString() + (powerUpPoints ==1 ? " Point!" : " Points!");
+            string points = powerUpPoints.ToString() + (powerUpPoints ==1 ? " POINT SCORED!" : " POINTS SCORED!");
 
             statusDisplayField.text = points;
             int bonusHealth = 0;
 
-            // randomly give Player a random bonus
-            if (Random.Range(1f,20f) >= 17f)
+            if (bHitFirstTime)
             {
-                bonusHealth = Random.Range(10, 20);
+                // prevent multiple health points addition
+                // randomly give Player a random bonus
+                bHitFirstTime = false;
+
+                if (Random.Range(1f, 20f) >= 17f)
+                {
+                    bonusHealth = Random.Range(10, 20);
+                }
+
+                if (bonusHealth > 0)
+                {
+                    // player got a bonus
+                    string bonus = bonusHealth.ToString();
+                    string blank = "YOU'RE LUCKY! BONUS HEALTH " + bonus + "%";
+
+                    // find bonus health field
+                    statusDisplayField.text = blank.ToString();
+                }
+
+                // update player health by remaining powerup health points and any bonus
+                theGameControllerScript.UpdatePlayerHealth(powerUpHealthPoints + bonusHealth);
+
+                bonusHealth = 0;
             }
-
-            if (bonusHealth > 0)
-            {
-                // player got a bonus
-                string bonus = bonusHealth.ToString();
-                string blank = "YOU'RE LUCKY! BONUS HEALTH POINTS " + bonus +"%";
-                
-                // find bonus health field
-                statusDisplayField.text = blank.ToString();
-            }
-
-            // update player health by remaining powerup health points and any bonus
-            theGameControllerScript.UpdatePlayerHealth(powerUpHealthPoints + bonusHealth);
-
-            bonusHealth = 0;
-
+            
             // disable it as we don't more collisions if we walk through it
             Destroy(gameObject, 0.35f);
-            hitByPlayer = false;
         }
     }
 }

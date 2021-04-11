@@ -2,6 +2,7 @@
 using System.Collections;
 using System.Collections.Generic;
 using UnityEngine;
+using UnityEngine.Audio;
 using UnityEngine.Experimental.GlobalIllumination;
 using UnityEngine.UI;
 
@@ -30,7 +31,10 @@ public class PlayerController : MonoBehaviour
     public  AudioClip laserFire;        // laser gunfire sound
     public  AudioClip walkMovement;     // walking sound
     public  AudioClip zombieHit;        // zombie hit
-    
+    public  AudioClip youReallyWannaGo; // "wanna go" - escape key voice
+
+    private AudioSource theAudio;       // audio source
+
     // sky box materials
     public Material daySkyBox;
     public Material nightSkyBox;
@@ -72,7 +76,10 @@ public class PlayerController : MonoBehaviour
         // get players rigidbody component & find focus
         playerRb = GetComponent<Rigidbody>();
         focusPoint = GameObject.Find("Focus Point");
-        
+
+        // get audio source
+        theAudio = GetComponent<AudioSource>();
+
         if (focusPoint == null)
         {
             Debug.Log("Couldn't find the Players Focus Point object, check enabled in gui and correctly tagged/named");
@@ -179,6 +186,7 @@ public class PlayerController : MonoBehaviour
         }
     }
 
+    
     IEnumerator ShootFlamethrower()
     {
         //  Plays Flamethrower particle effect
@@ -405,8 +413,22 @@ public class PlayerController : MonoBehaviour
                 if (Input.GetKeyDown(KeyCode.Escape))
                 {
                     // quit game
+
+                    // fix low volume on this clip by using a Mixer set up in gui
+                    AudioMixer mixer = Resources.Load("Music") as AudioMixer;
+                    string _OutputMixer = "Voice Up"; // group to output this audio listener to
+
+                    GetComponent<AudioSource>().outputAudioMixerGroup = mixer.FindMatchingGroups(_OutputMixer)[0];
+
+                    theAudio.clip = youReallyWannaGo;
+                    theAudio.PlayOneShot(theAudio.clip, 1f);
+
                     theGameControllerScript.bGameOver = true;
-                    Application.Quit();
+
+                    // wait for clip to finish plus a second
+                    StartCoroutine("GameQuit");
+
+                    //Application.Quit();
                 }
 
                 // Shoot Flamethrower
@@ -474,34 +496,30 @@ public class PlayerController : MonoBehaviour
                 }
             }
         }
+    }
 
-        // ok game could be over - so allow restart
-        if (theGameControllerScript.IsGameOver() && !bAnotherPanelInControl)
+    // prevent entry through walls
+
+    private void OnTriggerEnter(Collider other)
+    {
+        // check what we collided with
+        if (other.gameObject.CompareTag("Wall"))
         {
-            // get restart
-            //theGameControllerScript.PostStatusMessage("Game Over - Press 'S' to Restart!");
-
-            // clear any old message
-            //theGameControllerScript.PostStatusMessage(" ");
-
-            /*if (Input.GetKeyDown(KeyCode.R))
-            {
-                // restart game - keeping high scores etc this time
-
-                // sets day box for restart & turns off headlamp
-                if (theHeadLamp.activeSelf == true)
-                {
-                    // toggle nightmode to off as its currently on
-                    ToggleNightMode();
-                }
-
-                // restart game - no pressing R in High scores panel should now just reset score health info and pass to
-                // instruction panel where pressing S now restarts game....
-                theGameControllerScript.RestartGame();
-            }*/
+            Debug.Log("Trigger from Collision with a Wall!");
         }
     }
 
+    IEnumerator GameQuit()
+    {
+        yield return new WaitForSeconds(theAudio.clip.length + 2f); // length plus 2 secs
+
+        // may need to reset audio mixer, altho not needed yet
+        /*AudioMixer mixer = Resources.Load("Master") as AudioMixer;
+        string _OutputMixer = "sweet f.a. here"; // group to output this audio listener to  -  need to do a blank one here?
+        GetComponent<AudioSource>().outputAudioMixerGroup = mixer.FindMatchingGroups(_OutputMixer)[0];*/
+
+        Application.Quit();
+    }
     public bool IsNightMode()
     {
         // needed to turn on day mode if ending and entering a password in HighscoreController

@@ -35,7 +35,11 @@ public class MissileController : MonoBehaviour
         theDroneController = GameObject.FindGameObjectWithTag("Enemy Drone");
         theGameController = GameObject.FindGameObjectWithTag("GameController");
 
-        theDroneControllerScript = theDroneController.GetComponent<DroneController>();
+        if (theDroneControllerScript)
+        {
+            theDroneControllerScript = theDroneController.GetComponent<DroneController>();
+        }
+        
         theGameControllerScript = theGameController.GetComponent<GameplayController>();
     }
 
@@ -82,18 +86,20 @@ public class MissileController : MonoBehaviour
             collision.gameObject.CompareTag("Grassy Areas") ||
             collision.gameObject.CompareTag("Building") ||
             collision.gameObject.CompareTag("Skyscraper") ||
-            collision.gameObject.CompareTag("Stone Fence")
-            
-            )
+            collision.gameObject.CompareTag("Stone Fence") ||
+            collision.gameObject.CompareTag("Patio"))
         {
             // missile has landed (or hit end barriers/ landed on a powerup/ trees
             // or even bounced on a zombies head), so play bomb explosion at current position
             // and allow another bomb launch if not too far down screen
 
-            if (transform.position.z > -78)
+            if (transform.position.z > -100f)
             {
                 // ok to spawn another missile, so reset flag
-                theDroneControllerScript.missileLaunched = false;
+                if (theDroneControllerScript != null)
+                {
+                    theDroneControllerScript.missileLaunched = false;
+                }
             }
 
             // play explosion effect
@@ -108,7 +114,7 @@ public class MissileController : MonoBehaviour
             theGameControllerScript.UpdatePlayerScore(-20);
 
             // display direct hit message
-            theGameControllerScript.PostStatusMessage("Direct Bomb Hit! Lose 20 Points!");
+            theGameControllerScript.PostStatusMessage("DIRECT HIT! LOSE 20 POINTS!");
 
             // do explosion animation
             StartCoroutine(PlayingExplosion());
@@ -132,11 +138,11 @@ public class MissileController : MonoBehaviour
         GameObject thePlayer = theGameControllerScript.thePlayer;
 
         // Give Player damage if too close to explosion
-        if (Vector3.Distance(thePlayer.transform.position, transform.position) < 10f)
+        if (Vector3.Distance(thePlayer.transform.position, transform.position) < 15f)
         {
             // player within range to take blast wave damage
             theGameControllerScript.UpdatePlayerScore(-10);
-            theGameControllerScript.PostStatusMessage("Blast Wave Damage! Lose 10 Points!");
+            theGameControllerScript.PostStatusMessage("BLAST WAVE DAMAGE! LOSE 10 POINTS!");
         }
 
         // suspend deletiom for a bit
