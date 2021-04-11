@@ -9,9 +9,9 @@ public class KillTheBomb : MonoBehaviour
     // Start is called before the first frame update
     void Start()
     {
-        float time = GetComponent<ParticleSystem>().duration;
+        float time = GetComponent<ParticleSystem>().main.duration;
 
-        Destroy(gameObject, GetComponent<ParticleSystem>().duration);
+        Destroy(gameObject, GetComponent<ParticleSystem>().main.duration);
     }
 
     // Update is called once per frame

@@ -59,6 +59,7 @@ TagManager:
   - Neuti Tree
   - Instructions Panel
   - Crosshair Target
+  - Search Spotlight
   layers:
   - Default
   - TransparentFX

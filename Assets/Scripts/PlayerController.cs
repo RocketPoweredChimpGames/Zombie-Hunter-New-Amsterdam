@@ -210,7 +210,7 @@ public class PlayerController : MonoBehaviour
         theFlameThrower.GetComponentInChildren<ParticleSystem>().Play();
 
         // suspend turning off for a little bit to allow it to end sequence
-        yield return new WaitForSeconds(theFlameThrower.GetComponentInChildren<ParticleSystem>().duration);
+        yield return new WaitForSeconds(theFlameThrower.GetComponentInChildren<ParticleSystem>().main.duration);
     }
 
     // Update is called once per frame
@@ -428,6 +428,19 @@ public class PlayerController : MonoBehaviour
                     // Toggle Night Mode
                     ToggleNightMode();
                 }
+                
+                if (Input.GetKeyDown(KeyCode.H))
+                {
+                    // just toggle player headlamp on/off
+                    if (theHeadLamp.activeSelf)
+                    {
+                        theHeadLamp.SetActive(false);
+                    }
+                    else
+                    {
+                        theHeadLamp.SetActive(true);
+                    }
+                }
 
                 if (Input.GetKeyDown(KeyCode.Alpha1))
                 {
@@ -505,6 +518,7 @@ public class PlayerController : MonoBehaviour
         GameObject theSceneLight = GameObject.FindGameObjectWithTag("Main Lighting");
         Light theLight = theSceneLight.GetComponent<Light>();
 
+        
         if (!bNightModeOn)
         {
             // set to night time mode!
@@ -519,6 +533,9 @@ public class PlayerController : MonoBehaviour
                 UnityEngine.RenderSettings.ambientIntensity = 0.25f; // Will make it dark
                 UnityEngine.RenderSettings.reflectionIntensity = 0.25f; // will make it dark
             }
+            
+            // turn on searchlights
+            GameObject.Find("SearchlightController").GetComponent<SearchlightController>().EnableSearchlights(true);
 
             bNightModeOn = !bNightModeOn;
 
@@ -551,6 +568,9 @@ public class PlayerController : MonoBehaviour
 
             UnityEngine.RenderSettings.ambientIntensity    = 1f; // Will make it light
             UnityEngine.RenderSettings.reflectionIntensity = 1f; // will make it light
+
+            // turn off searchlights
+            GameObject.Find("SearchlightController").GetComponent<SearchlightController>().EnableSearchlights(false);
 
             // turn off street lighting
             foreach (GameObject bulb in theStreetlightBulbs)
