@@ -39,6 +39,7 @@ public class GameplayController : MonoBehaviour
     public GameObject   theInstructionPanel;    // displayed prior to game start with instructions & animations of alien and player
     public GameObject   theCreditsReplayPanel;  // credits and replay panel at end of game
     public GameObject   theHighScoresPanel;     // top ten high scores panel
+    private GameObject  theGameExitPanel = null;// game exit control panel
     private GameObject  theCrosshairs;          // target for flame / aiming
 
     private HighScoreTableController   theHighScoresControllerScript; // high scores controller script
@@ -74,7 +75,8 @@ public class GameplayController : MonoBehaviour
     public TMP_Text     EnemiesRemaining;       // remaining enemies this wave
     public TMP_Text     EnemiesKilledTotal;     // total enemies killed in game
     public TMP_Text     HighScore;              // player high score
-    public TMP_Text     ShotsLeftText;          // dual function displays "SHOTS LEFT" & "LOAD TIME" when shots used up
+    public TMP_Text     ClipsLeft;              // number of ammo clips left
+    public TMP_Text     ShotsLeftText;          // dual function displays "SHOTS" & "TIME" when all shots/clips shots used up
     public TMP_Text     CountReload;            // dual function shots left & time to reload when expired
 
     private List<PowerUp> currentPowerups;      // current powerups on screen for grand finale destruction sequence
@@ -83,31 +85,59 @@ public class GameplayController : MonoBehaviour
     private UnityEngine.Vector3[] originalStartPosition; // position where our 'Zombie' objects were originally spawned (not used yet)
     
     // game control 
-    public  bool bGameStarted     = false;  // has game started
-    private bool bGameReStarted   = false;  // has game been restarted
-    public  bool bGamePaused      = false;  // is game on pause
-    public  bool bGameOver        = false;  // is game over
-    public  bool playingCountdown = false;  // are we playing countdown noise
+    public  bool bGameStarted       = false;  // has game started
+    private bool bGameReStarted     = false;  // has game been restarted
+    public  bool bGamePaused        = false;  // is game on pause
+    public  bool bGameOver          = false;  // is game over
+    public  bool playingCountdown   = false;  // are we playing countdown noise
+    private int  enemySpeedSetting  = 2;      // set by Player to tell enemies speed to go at (0- slow, 1-medium, 2-normal)
+    
+    // game stats stuff
+    public int   enemyWaveNumber       = 0;   // wave number
+    private int  totalEnemiesKilled    = 0;   // total of all kills
+    private int  enemiesKilledThisWave = 0;   // how many killed on current wave
+    private int  maxEnemiesPerWave     = 50;  // maximum per wave before starting next wave
 
     // player variables
-    private int maxPowerUps       = 200;    // maximum powerups on screen at a time
-    private int playerLives       = 3;      // number of player lives
-    public  int playerHealth      = 100;    // initial full health
-    private int playerScore       = 0;      // initial player score
-    private int highScore         = 0;      // put in a file later to keep
+    private int  maxPowerUps       = 200;   // maximum powerups on screen at a time
+    private int  playerLives       = 3;     // number of player lives
+    public  int  playerHealth      = 100;   // initial full health
+    private int  playerScore       = 0;     // initial player score
+    private int  highScore         = 0;     // put in a file later to keep
+    public bool  playerJustDied    = false; // set to true if player just died to avoid new hits for a few seconds
 
-    public bool playerJustDied   = false;   // set to true if player just died to avoid new hits for a few seconds
-
-    private int enemySpeedSetting = 2;      // set by Player to tell enemies speed to go at (0- slow, 1-medium, 2-normal)
-
-    // game stats stuff
-    public  int enemyWaveNumber       = 0;  // wave number
-    private int totalEnemiesKilled    = 0;  // total of all kills
-    private int enemiesKilledThisWave = 0;  // how many killed on current wave
-    private int maxEnemiesPerWave     = 50; // maximum per wave before starting next wave
-
+    // shot counters
+    private int  startingClips     = 4;     // initial number of clips (may come from a file if player can buy stuff later in dev)
+    private int  clipsLeft         = 4;     // clips remaining
+    private int  shotsInAClip      = 25;    // total shots in a clip   (may vary if player buys bigger clips later in dev)
+    private int  shotsLeftThisClip = 25;    // shots left in current clip  
+    
     // sky box to use at start
     public Material theDaySkybox; // daytime sky box
+
+    public int GetStartingClips()
+    {
+        // returns start number of clips player has
+        return startingClips;
+    }
+
+    public int GetNumberOfClipsLeft()
+    {
+        // returns number of clips player has left
+        return clipsLeft;
+    }
+
+    public int GetShotsInMagazine()
+    {
+        // returns number of shots left in current clip
+        return shotsLeftThisClip;
+    }
+
+    public void ShotFired()
+    {
+        // reduces number in current clip by one, which will reduce number of clips as required
+        // which will then update display later on in dev
+    }
 
     public bool HasPlayerJustDied()
     {
@@ -163,20 +193,22 @@ public class GameplayController : MonoBehaviour
         {
             // starts Spawnmanager spawning on next update(), and also
             // enables Player controls in player controller
-            //bGameStarted    = true;  // start game - done in setgamedefaults() now
-
+            
             // set with high score read from PlayerPrefs
             highScore = theHighScoresControllerScript.GetHighScore();
             HighScore.SetText(highScore.ToString());
 
-            // set shots display to initial "100" & shots text
-            CountReload.SetText("100".ToString());
-            ShotsLeftText.SetText("SHOTS LEFT".ToString());
+            // reset to initial "25" shots & reset display text
+            CountReload.SetText(shotsInAClip.ToString()); // reset shots left in clip display
+            ShotsLeftText.SetText("SHOTS".ToString()); // dual purpose field ("SHOTS" and "TIME") display
+
+            // set clips display object to initial "4"
+            ClipsLeft.SetText(startingClips.ToString());
 
             // starts (or restarts) routine which periodically decays health (every 3s)
             if (IsHealthCountdownPaused())
             {
-                // countdown currently paused (always at 1st start/ and at restart situation), so enable it again
+                // countdown currently paused (must always be paused at 1st start/ and at restart situation), so enable it again
                 SetHealthCountdownPaused(false);
                 thePlayer.GetComponent<PlayerController>().SetAnotherPanelInControl(false);
             }
@@ -226,6 +258,7 @@ public class GameplayController : MonoBehaviour
             string messageText = "Game Paused!";
             StatusDisplay.text = messageText.ToString();
             Time.timeScale = 0;
+            SetHealthCountdownPaused(true);
         }
         else
         {
@@ -235,6 +268,7 @@ public class GameplayController : MonoBehaviour
             string messageText = "";
             StatusDisplay.text = messageText.ToString();
             Time.timeScale = 1;
+            SetHealthCountdownPaused(false);
         }
     }
 
@@ -424,19 +458,25 @@ public class GameplayController : MonoBehaviour
         totalEnemiesKilled    = 0;     // no enemies killed
         enemiesKilledThisWave = 0;     // nothing killed this wave
         bGameStarted          = true;  // allows Player controller to call StartGame again
-        bGameOver             = false; // allow player inpits again
+        bGameOver             = false; // allow player controller inputs again
         bGamePaused           = false; // game not paused
         playerHealth          = 100;   // reset health
         playerScore           = 0;     // reset score
         playerLives           = 3;     // reset lives
-
+        playerJustDied        = false; // reset to allow player to take damage again
+        
+        clipsLeft             = startingClips;  // initial number of clips
+        shotsLeftThisClip     = shotsInAClip;   // initial shots in a clip
+        
         // reset contents of display fields
-        EnemyWaveNum.SetText(      enemyWaveNumber.ToString());
-        EnemiesRemaining.SetText(  maxEnemiesPerWave.ToString());
-        EnemiesKilledTotal.SetText(totalEnemiesKilled.ToString());
-        LivesPlayer.SetText(       playerLives.ToString());
-        PlayerHealth.SetText(      playerHealth.ToString());
-        ScorePlayer.SetText(       playerScore.ToString());
+        EnemyWaveNum.SetText(      enemyWaveNumber.ToString());     // wave number
+        EnemiesRemaining.SetText(  maxEnemiesPerWave.ToString());   // enemies left this wave
+        EnemiesKilledTotal.SetText(totalEnemiesKilled.ToString());  // total enemies killed
+        LivesPlayer.SetText(       playerLives.ToString());         // lives left
+        PlayerHealth.SetText(      playerHealth.ToString());        // health
+        ScorePlayer.SetText(       playerScore.ToString());         // score
+        ClipsLeft.SetText(         clipsLeft.ToString());           // initial ammo clips left (set above)
+        CountReload.SetText(       shotsLeftThisClip.ToString());   // initial shots in a clip (set above)
 
         // initialise status message box
         string blank = " ";
@@ -455,7 +495,7 @@ public class GameplayController : MonoBehaviour
             theCrosshairs.SetActive(true);
         }
 
-        // reposition player to start position
+        // reposition player to start position (work on rotation at some point... rigidbody?)
         theStartPosition.position = new UnityEngine.Vector3(36f, 0.1f, -75f);
         transform.Translate(theStartPosition.position);
 
@@ -596,7 +636,7 @@ public class GameplayController : MonoBehaviour
 
    void Awake()
    {
-        // get high score & instruction panel scripts
+        // get high score panel script
         theHighScoresControllerScript = theHighScoresPanel.GetComponentInChildren<HighScoreTableController>();
 
         if (theHighScoresControllerScript == null)
@@ -606,6 +646,21 @@ public class GameplayController : MonoBehaviour
 
         // find crosshairs
         theCrosshairs = GameObject.FindGameObjectWithTag("Crosshair Target");
+
+        // get game exit panel
+        theGameExitPanel = GameObject.Find("Game Exit Panel"); // needed as we can press Escape in here too
+                                                               // check if we found it - but don't disable here as Instruction panel does this
+        if (!theGameExitPanel)
+        {
+            Debug.Log("Can't find Game Exit Panel from Player Controller Awake()");
+        }
+    }
+
+    void ActivateGameExitPanel()
+    {
+        // Turn on Game exit panel and disable user input in Player controller for now
+        thePlayer.GetComponent<PlayerController>().SetAnotherPanelInControl(true);
+        theGameExitPanel.SetActive(true);
     }
 
     // Update is called once per frame
@@ -639,16 +694,8 @@ public class GameplayController : MonoBehaviour
             // pressing escape will first just pause game, and if confirmed, will then exit
             // and play exit voice, or maybe an Advert in future!
 
-            if (Input.GetKeyDown(KeyCode.Escape))
+            if (Input.GetKeyDown(KeyCode.Escape) && !thePlayer.GetComponent<PlayerController>().IsAnotherPanelInControl())
             {
-                if (bGameStarted && bGameOver)
-                {
-                    // pause game for now
-                    PauseGame(true);
-                }
-
-                // Quit game - but must confirm in a dialog
-                
                 // fix low volume on this clip by using a Mixer set up in gui
                 AudioMixer mixer = Resources.Load("Music") as AudioMixer;
                 string _OutputMixer = "Voice Up 10db"; // group to output this audio listener to
@@ -660,53 +707,29 @@ public class GameplayController : MonoBehaviour
                 // prevent any inputs in Player controller while we respond
                 thePlayer.GetComponent<PlayerController>().SetAnotherPanelInControl(true);
 
+                Debug.Log("Escape pressed in Gameplay controller");
+
                 // start routine to get confirmation
                 StartCoroutine("GameQuit");
             }
         }
-
     }
     
     // game quit sequence
     IEnumerator GameQuit()
     {
         // show game over dialog
-        GameObject theExitPanel = GameObject.FindGameObjectWithTag("Game Exit Panel");
-
-        // show the dialog which will terminate (or not) the application
-        theExitPanel.gameObject.GetComponent<GameOverDialogController>().Open();
-
         yield return new WaitForSeconds(theAudioSource.clip.length); // delay till clip over
-        
-        /*if (bLeave)
-        {
-            // play 'goodbye' voice
-            GetComponent<AudioSource>().outputAudioMixerGroup = theMixer.FindMatchingGroups(_outputMixer)[0];
-            theAudioSource.clip = goodbye;
-            theAudioSource.PlayOneShot(theAudioSource.clip, 1f);
 
-            StartCoroutine("GameFinished");
+        if (bGameStarted && !bGameOver)
+        {
+            // pause game for now
+            PauseGame(true);
         }
-        else
-        {
-            // enable inputs again
-            thePlayer.GetComponent<PlayerController>().SetAnotherPanelInControl(false);
 
-            if (bGameStarted && bGameOver)
-            {
-                // pause game for now
-                PauseGame(false);
-            }
-        }*/
+        ActivateGameExitPanel();
     }
 
-    /*// final termination of game
-    IEnumerator GameFinished()
-    {
-        yield return new WaitForSeconds(theAudioSource.clip.length + 1f); // wait for end of goodbye voice
-        Debug.Log("Game Final Termination!");
-        Application.Quit();
-    }*/
 
     public void UpdatePlayerScore(int scoreChange)
     {
@@ -812,6 +835,8 @@ public class GameplayController : MonoBehaviour
             StatusDisplay.SetText(blank.ToString());
 
             // not playing it, so play it
+            _outputMixer = "No Change"; // set to normal levels
+            GetComponent<AudioSource>().outputAudioMixerGroup = theMixer.FindMatchingGroups(_outputMixer)[0];
             theAudioSource.clip = countdownNoise;
             theAudioSource.time = 125.06f;
             theAudioSource.volume = 25;
@@ -985,7 +1010,7 @@ public class GameplayController : MonoBehaviour
     public void StartWeaponReload()
     {
         // starts weapon reload sequence
-        ShotsLeftText.SetText("TIME LEFT".ToString()); // set to reloading
+        ShotsLeftText.SetText("TIME".ToString()); // set to reloading
         CountReload.SetText("15".ToString());
         PostStatusMessage("OUT OF FUEL - RELOADING!");
         StartCoroutine("WeaponReloadTimer");
@@ -1018,9 +1043,9 @@ public class GameplayController : MonoBehaviour
         }
 
         // timer exceeded - tell player controller gun reloaded
-        ShotsLeftText.SetText("SHOTS LEFT".ToString()); // set to available
-        CountReload.SetText("100".ToString());          // set to initial value
-        elapsedSecs = 0; // reset count
+        ShotsLeftText.SetText("SHOTS".ToString());    // set to available
+        CountReload.SetText(shotsInAClip.ToString()); // set to initial value
+        elapsedSecs = 0; // reset counter
         thePlayer.GetComponent<PlayerController>().SetGunAvailable(); // re available
     }
 }

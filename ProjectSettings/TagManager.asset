@@ -80,6 +80,8 @@ TagManager:
   - Sky Platform Exit
   - Plasma Effect
   - Smart Bomb Explosion
+  - Kiosk
+  - Clips Left
   layers:
   - Default
   - TransparentFX

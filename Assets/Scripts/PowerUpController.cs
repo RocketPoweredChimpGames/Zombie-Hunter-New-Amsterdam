@@ -19,6 +19,7 @@ public class PowerUpController : MonoBehaviour
     private float decayPeriod         = 10.0f; // decays a bit every 10 secs
     private int   decayCount          = 0;     // number of times powerup has decayed (deleted on points reaching 0)
     private int   powerUpPoints       = 5;     // score value - every power starts with 5 points
+    private int   scoreMultiplier     = 5;     // give it a better score, could increase points with levels later on?
     private int   powerUpHealthPoints = 3;     // health points given for collecting this powerup
 
     private bool  hitByPlayer        = false;
@@ -239,9 +240,10 @@ public class PowerUpController : MonoBehaviour
             GetComponent<AudioSource>().Play();
 
             // update score in game manager
-            theGameControllerScript.UpdatePlayerScore(powerUpPoints);
+            theGameControllerScript.UpdatePlayerScore(powerUpPoints * scoreMultiplier);
 
-            string points = powerUpPoints.ToString() + (powerUpPoints == 1 ? " POINT SCORED!" : " POINTS SCORED!");
+            //string points = powerUpPoints.ToString() + (powerUpPoints == 1 ? " POINT SCORED!" : " POINTS SCORED!");
+            string points = (powerUpPoints * scoreMultiplier).ToString() + " POINTS SCORED!";
 
             statusDisplayField.text = points;
             int bonusHealth = 0;

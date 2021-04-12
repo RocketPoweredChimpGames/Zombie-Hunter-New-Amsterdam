@@ -55,25 +55,28 @@ public class PlayerController : MonoBehaviour
     //private float   speed = 12f;          // player movement speed - *not used*
 
     // scoring
-    private int pointsPerEnemyHitShot = 5;    // points per hit
-    private int maxPointsPerEnemy     = 25;   // gamePlayController "points per hit" multiplier - set to 25 as 5 hits per enemy to destroy
-    private bool smartBombAvailable   = true; // smart bomb availability to player
+    private int   pointsPerEnemyHitShot = 10;   // points per hit
+    private int   maxPointsPerEnemy     = 50;   // gamePlayController "points per hit" multiplier - set to 25 as 5 hits per enemy to destroy
+    private bool  smartBombAvailable    = true; // smart bomb availability to player
 
     // weapon firing stuff
-    private int   shotsFired           = 0;     // shots fired this magazine
-    private int   maxShotsInMagazine   = 100;   // shots before reload required
+    private int   shotsFired            = 0;    // shots fired this magazine
+    private int   maxShotsInMagazine    = 10;   // dummy value - shots before reload required -we get this from game controller
+    private int   clipsLeft             = 5;    // dummy value - clips left  - we get this from game controller
+    private int   startClips            = 5;    // dummy value - start clips - we get this from game controller
+
     private bool  bGunAvailable        = true;  // gun always available at start
     private bool  bWeaponReloadStarted = false; // have we started timer to reload already
     private bool  bReloadVoice         = false; // no empty gun noise till this is set true
     private bool  bGunShooting         = false; // is gun currently shooting, delayed by coroutine to prevent spamming space key
     public  float damageDone           = 20f;   // damage% per hit on enemy
     public  float rangeForHits         = 2.1f;  // range for raycast for hits
-
+    private float smartBombRange       = 60f;   // destruction range for the smart bomb
     private bool  bBreathingPlaying    = false; // have we started playing audio (on forward/back movement)
 
     // game boundaries (left in, not used now)
-    private int boundaryZ = 208; // top & bottom (+-) boundaries on Z axis from centre (0,0,0)
-    private int boundaryX = 208;  // left & right (+-) boundaries on X axis from centre (0,0,0)
+    //private int boundaryZ = 208; // top & bottom (+-) boundaries on Z axis from centre (0,0,0)
+    //private int boundaryX = 208; // left & right (+-) boundaries on X axis from centre (0,0,0)
 
     // night mode toggle
     public bool bNightModeOn = false;
@@ -220,6 +223,11 @@ public class PlayerController : MonoBehaviour
 
         theGameControllerScript = theGameController.GetComponent<GameplayController>();
 
+        // get number of clips (magazines) at start / and shots per magazine clip
+        maxShotsInMagazine = theGameControllerScript.GetShotsInMagazine();
+        startClips         = theGameControllerScript.GetStartingClips();
+        clipsLeft          = startClips;
+        
         // get the animator
         theAnimator = this.GetComponent<Animator>();
 
@@ -296,17 +304,16 @@ public class PlayerController : MonoBehaviour
         }
     }
 
-    
     IEnumerator ShootFlamethrower()
     {
-        //  Plays Flamethrower particle effect
+        //  Plays Flamethrower particle effect at 'Flame Point' on Player Character
         yield return new WaitForSeconds(0.1f); // wait for gun shooting animation to start elsewhere
 
         theFlameThrower.SetActive(true); // set it active
 
         // play flamethrower sound
         theAudio.enabled = true;
-        _outputMixer = "No Change"; // group to output the audio listener to
+        _outputMixer = "No Change"; // group to output the audio listener to (no volume change)
         GetComponent<AudioSource>().outputAudioMixerGroup = theMixer.FindMatchingGroups(_outputMixer)[0];
         theAudio.clip = laserFire;
         theAudio.PlayOneShot(laserFire, 1f);
@@ -340,6 +347,7 @@ public class PlayerController : MonoBehaviour
 
     IEnumerator PlayBreathingMovement()
     {
+        // Plays a breathing sound on forward/backwards movement by player
         if (!bBreathingPlaying)
         {
             // play breathing sound only when moving forwards or backwards
@@ -357,6 +365,7 @@ public class PlayerController : MonoBehaviour
 
     IEnumerator DelayGunShot()
     {
+        // wait to start gun shot to prevent (too much) key spamming
         if  (!bGunShooting)
         {
             bGunShooting = true;
@@ -674,7 +683,7 @@ public class PlayerController : MonoBehaviour
         else return false;
     }
 
-    // Toggle Night Mode
+    // Toggle Night Mode on/off at players command
     public void ToggleNightMode()
     {
         GameObject theSceneLight = GameObject.FindGameObjectWithTag("Main Lighting");
@@ -823,7 +832,7 @@ public class PlayerController : MonoBehaviour
         }
     }
 
-    private float smartBombRange = 60f; // try to start with
+    
 
 
     // smart bomb explosion effect
@@ -929,9 +938,12 @@ public class PlayerController : MonoBehaviour
     public void SetGunAvailable()
     {
         // game controller countdown finished
-        bGunAvailable        = true;  // reset gun available flag
-        bWeaponReloadStarted = false; // reset gun reload timer flag
-        shotsFired           = 0;     // reset shots fired
+        bGunAvailable        = true;       // reset gun available flag
+        bWeaponReloadStarted = false;      // reset gun reload timer flag
+        shotsFired           = 0;          // reset shots fired
+        clipsLeft            = startClips; // reset to starting clips again
+        UpdateClipsDisplay();
+        UpdateShotsDisplay();
 
         // post display message
         theGameControllerScript.PostStatusMessage("WEAPON AVAILABLE!"); // clears after 4 secs
@@ -956,12 +968,30 @@ public class PlayerController : MonoBehaviour
         bReloadVoice = true; // now allow "empty air" voice to play
     }
 
+    private void UpdateShotsDisplay()
+    {
+        // added 7/10/2020 - function here for now to update shots display stuff in gameplay controller
+        // will be moved into game manager and a function called here instead later on
+
+        if (shotsFired <= maxShotsInMagazine)
+        {
+            theGameControllerScript.CountReload.SetText((maxShotsInMagazine - shotsFired).ToString());
+        }
+    }
+
+    private void UpdateClipsDisplay()
+    {
+        // added 7/10/2020 - function here for now to update clips display stuff in gameplay controller
+        // will be moved into game manager and a function called here instead later on
+        theGameControllerScript.ClipsLeft.SetText(clipsLeft.ToString());
+    }
+
     void ShootGun()
     {
         shotsFired++; // increment shots fired
 
         // show message nearly empty
-        if (maxShotsInMagazine -shotsFired <= 5)
+        if ((maxShotsInMagazine - shotsFired <= 5) && clipsLeft == 0)
         {
             theGameControllerScript.PostStatusMessage("WEAPON NEARLY EMPTY!");
         }
@@ -969,16 +999,25 @@ public class PlayerController : MonoBehaviour
         // check if we have already exceeded magazine contents before allowing shot
         if (shotsFired >= maxShotsInMagazine)
         {
-            if (!bWeaponReloadStarted)
+            if (clipsLeft >= 1)
+            {
+                clipsLeft--; // reduce clips by one
+                shotsFired = 0;
+            }
+            else if (!bWeaponReloadStarted)
             {
                 // start timer to reload weapon magazine which will set gun reloaded and reset flag
                 // upon completion
                 bGunAvailable        = false;
                 bWeaponReloadStarted = true;
-                theGameControllerScript.StartWeaponReload();
                 
+                // start reload
+                theGameControllerScript.StartWeaponReload();
                 StartCoroutine("ReloadVoicePlay"); // prevent air noise play on empty until this finishes
             }
+
+            UpdateShotsDisplay(); // update shot here as last shot in clip must be counted too
+            UpdateClipsDisplay();
         }
         
         if (shotsFired < maxShotsInMagazine)
@@ -986,15 +1025,23 @@ public class PlayerController : MonoBehaviour
             // shoot the flames
             StartCoroutine(ShootFlamethrower());
 
-            // update display
-            theGameControllerScript.CountReload.SetText((maxShotsInMagazine - shotsFired).ToString());
+            // update display here (do a function for it which can move to gameplay controller later)
+            if (!bWeaponReloadStarted)
+            {
+                // only update if we aren't reloading gun
+                UpdateShotsDisplay();
+                UpdateClipsDisplay();
+            }
 
-            // Does a raycast from the players transform in a forward facing direction
-            // the 'hit' variable returns the position of the hit on an object collider which we check to see if an enemy character
+            //theGameControllerScript.CountReload.SetText((maxShotsInMagazine - shotsFired).ToString());
+
+            // Do a raycast from the players transform in a forward facing direction
+            // the 'hit' variable returns the position of the hit on an object collider which we check to see if it's an enemy (zombie)
             // or not, if it is, send a message to enemy object to do damage, and cause it to explode/die,
-            // Regardless, does a flame particle effect in transforms forward direction.
+            // in all cases, we do a flame particle effect in our transform's forward direction.
 
-            // set to repeat shot animation, as more likely to be firing repeatedly and single shot anim is too slow to activate!
+            // set to repeat shot animation, as more likely to be firing repeatedly and single shot anim is too slow to activate,
+            // not perfect but all I have!
             theAnimator.SetBool("b_RepeatShot", true);
 
             RaycastHit pointHit;

@@ -91,6 +91,7 @@ public class MissileController : MonoBehaviour
             collision.gameObject.CompareTag("Stop Sign") ||
             collision.gameObject.CompareTag("Mailbox") ||
             collision.gameObject.CompareTag("Fire Hydrant") ||
+            collision.gameObject.CompareTag("Kiosk") ||
             collision.gameObject.CompareTag("Patio"))
         {
             // missile has landed (or hit end barriers/ landed on a powerup/ trees etc,

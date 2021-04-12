@@ -45,7 +45,6 @@ public class SpawnManager : MonoBehaviour
     int droneArea        = 0; // area for next drone spawn ( 1 or 2 currently
     int powerUpSpawnZone = 0; // area for next powerup spawn
 
-    
     // Start is called before the first frame update
     void Start()
     {
@@ -114,50 +113,46 @@ public class SpawnManager : MonoBehaviour
             {
                 for (int iSpawn = 0; iSpawn < nToSpawnNow; iSpawn++)
                 {
-                    // Spawn enemies at different random places
-                    // Unity uses 10 x 10 scale for 1 display unit on screen,
-                    // SO, screen positions in Editor relate to the ORIGINAL plane size x SCALE FACTOR the plane was scaled up by.
-                    //
-                    // original spawn zone playfield
-                    // randomX = Random.Range(  8f, 50f);
-                    // randomZ = Random.Range(-58f, 55f);
+                    // spawn enemies at random places (Unity uses 10x10 scale for 1 display unit on screen)
+                    // screen positions in Editor relate to the ORIGINAL plane size x SCALE FACTOR the plane was scaled up by.
+                    float randomX = 0f;
+                    float randomZ = 0f;
 
-                    float randomX   = 0f;
-                    float randomZ   = 0f;
-
-                    if (warriorSpawnZone == 1)
+                    switch (warriorSpawnZone)
                     {
-                        // main area at startup
-                        randomX = Random.Range(10f, 160f);
-                        randomZ = Random.Range(0f,  175f);
-                        //Debug.Log("Spawning Warrior in Zone 1");
-                    }
-                    
-                    if (warriorSpawnZone == 2)
-                    {
-                        // top left near HQ building / left side of central lake 
-                        randomX = Random.Range(-175f, -145f);
-                        randomZ = Random.Range(-150f,  190f);
+                        case 1:
+                            {
+                                // main area at startup
+                                randomX = Random.Range(10f, 160f);
+                                randomZ = Random.Range(0f, 175f);
+                                break;
+                            }
 
-                        //Debug.Log("Spawning Warrior in Zone 2");
-                    }
-                    
-                    if (warriorSpawnZone == 3)
-                    {
-                        // main zone, bottom park area
-                        randomX = Random.Range(-130f, 190f);
-                        randomZ = Random.Range(-140f,-195f);
+                        case 2:
+                            {
+                                // top left near HQ building / left side of central lake 
+                                randomX = Random.Range(-175f, -145f);
+                                randomZ = Random.Range(-150f, 190f);
+                                break;
+                            }
 
-                        //Debug.Log("Spawning Warrior in Zone 3");
-                    }
-                    
-                    if (warriorSpawnZone == 4)
-                    {
-                        // sky platform - central area
-                        randomX = Random.Range( 450f,570f);
-                        randomZ = Random.Range(-170f, 55f);
+                        case 3:
+                            {
+                                // main zone, bottom park area
+                                randomX = Random.Range(-130f, 190f);
+                                randomZ = Random.Range(-140f, -195f);
+                                break;
+                            }
 
-                        //Debug.Log("Spawning Warrior in Zone 4");
+                        case 4:
+                            {
+                                // sky platform - central area
+                                randomX = Random.Range(450f, 570f);
+                                randomZ = Random.Range(-170f, 55f);
+                                break;
+                            }
+
+                        default: break;
                     }
 
                     // spawn it
@@ -166,11 +161,6 @@ public class SpawnManager : MonoBehaviour
 
                     newWarrior = Instantiate(warriorToSpawn, randomSpawnPos, Quaternion.identity);
                 }
-            }
-            else
-            {
-                // need to tell player to go find the remaining warriors to level up
-                //theGameControllerScript.PostStatusMessage("Number of Zombies on screen " + numberOfEnemiesOnScreenNow);
             }
         }
     }

@@ -4,13 +4,14 @@ using UnityEngine;
 
 public class InstructionPanelController : MonoBehaviour
 {
-    private GameObject               thePlayer               = null; // our player
-    private Camera                   theMainCamera           = null; // main camera on player
+    private GameObject               thePlayer               = null; // our player character
+    private Camera                   theMainCamera           = null; // main camera on player (child of player)
 
     private GameObject               thePlayerPanel          = null; // the main gameplay panel with scores/lives/health
-    private GameObject               theCreditsReplayPanel   = null; // the credits and replay option panel
+    private GameObject               theCreditsReplayPanel   = null; // the credits / replay option panel
+    private GameObject               theGameExitPanel        = null; // game exit control panel
     private GameObject               theHighScoresPanel      = null; // high scores display panel
-    private HighScoreTableController theHighScoreScript      = null; // game controller script
+    private HighScoreTableController theHighScoreScript      = null; // high score controller script
 
     private GameObject               theGameController       = null; // game controller
     private GameplayController       theGameControllerScript = null; // game controller script
@@ -19,11 +20,12 @@ public class InstructionPanelController : MonoBehaviour
     void Start()
     {
         // find the score/lives panel (must be active to be able to find, then immediately de-activate!
-        // and same for credits replay panel & high scores one
+        // and do same for credits replay panel, high scores panel, game exit panels
         thePlayerPanel        = GameObject.Find("Score Lives Panel");
         theCreditsReplayPanel = GameObject.Find("Credits Replay Panel");
         theGameController     = GameObject.Find("GameplayController");
         theHighScoresPanel    = GameObject.Find("High Scores Panel");
+        theGameExitPanel      = GameObject.Find("Game Exit Panel");
 
         if (theGameController != null)
         {
@@ -35,6 +37,7 @@ public class InstructionPanelController : MonoBehaviour
             }
         }
 
+        // find the player character
         thePlayer = GameObject.Find("Player");
 
         // turn off high scores panel
@@ -47,7 +50,7 @@ public class InstructionPanelController : MonoBehaviour
 
             if (theHighScoreScript == null)
             {
-                Debug.Log("Couldn't find High Score Controller Script from within Instruction Panel");
+                Debug.Log("Couldn't find High Score Controller Script from Instruction Panel Start()");
             }
             else
             {
@@ -57,7 +60,7 @@ public class InstructionPanelController : MonoBehaviour
         }
         else
         {
-            Debug.Log("Can't find High Scores Panel from Instruction Panel start()");
+            Debug.Log("Can't find High Scores Panel from Instruction Panel Start()");
         }
 
         if (thePlayer == null)
@@ -71,7 +74,7 @@ public class InstructionPanelController : MonoBehaviour
 
             if (theMainCamera == null)
             {
-                Debug.Log("Couldn't find Players Main Camera from within Instruction Panel");
+                Debug.Log("Couldn't find Players Main Camera from within Instruction Panel Start()");
             }
             else
             {
@@ -80,22 +83,32 @@ public class InstructionPanelController : MonoBehaviour
             }
         }
 
-        // only now do we turn off player panel as we have got all the objects we need to reactivate later
+        if (theGameExitPanel)
+        {
+            // found game exit panel, immediately deactivate as we are in Instructions panel
+            theGameExitPanel.SetActive(false);
+        }
+        else
+        {
+            Debug.Log("Can't find Game Exit Panel from Instruction Panel start()");
+        }
 
         if (theCreditsReplayPanel)
         {
-            // found it, immediately deactivate as we are in Instructions Demo Panel now
+            // found credits panel, immediately deactivate as we are in Instructions Demo Panel now
             theCreditsReplayPanel.SetActive(false);
         }
         else
         {
-            Debug.Log("Can't find Credits Replay Panel from Instruction Panel start()");
+            Debug.Log("Can't find Credits Replay Panel from Instruction Panel Start()");
         }
 
-        // turn off player score panel
+        // NEVER CHANGE THIS DISABLING ORDER - THIS MUST ALWAYS BE LAST
+        //
+        // Only NOW do we turn off the player panel as we have got all the objects we need for reactivating later
         if (thePlayerPanel)
         {
-            // found it, immediately deactivate as we are in Instructions Panel now
+            // found it, now deactivate as we are currently in Instructions Panel (main control panel)
             thePlayerPanel.SetActive(false);
         }
         else
@@ -109,27 +122,10 @@ public class InstructionPanelController : MonoBehaviour
     {
         if (Input.GetKeyDown(KeyCode.S) && !thePlayer.GetComponent<PlayerController>().IsAnotherPanelInControl())
         {
-            // check whether we should reenable health countdown
-            /*if (theGameControllerScript.HasHealthDecayBeenStarted())
-            {
-                // we must have Pressed 'S' AFTER finishing a game, and game end stopped coroutine for health decay
-                // so need to allow it to be restarted on next Update in Game Controller
-                theGameController.GetComponent<GameplayController>().ReEnableHealthDecay();
-            }*/
-
-            // start the game, hide demo characters, enable player score panel, disable this one
-            // and any other currently on screen
+            // activate panels, set defaults and start game spawning/running
             ActivatePlayerPanel();
-
-            /*if (theGameControllerScript.IsGameOver())
-            {
-                theGameControllerScript.RestartGame();
-            }
-            else
-            {*/
-                theGameControllerScript.SetGameDefaults();
-                theGameControllerScript.StartGame(true);
-            //}
+            theGameControllerScript.SetGameDefaults(); // reset ALL relevant variables to defaults
+            theGameControllerScript.StartGame(true); // starts spawning and game running on next update() in other controllers
         }
 
         if (Input.GetKeyDown(KeyCode.C))
@@ -142,6 +138,13 @@ public class InstructionPanelController : MonoBehaviour
         {
             // enable high scores panel, and disable this one
             ActivateHighScorePanel();
+        }
+
+        if (Input.GetKeyDown(KeyCode.Escape) && !thePlayer.GetComponent<PlayerController>().IsAnotherPanelInControl())
+        {
+            // activate Game exit panel, and disable this one
+            Debug.Log("Escape called in Instruction Panel");
+            ActivateGameExitPanel();
         }
     }
 
@@ -173,7 +176,7 @@ public class InstructionPanelController : MonoBehaviour
         // disable this panel
         gameObject.SetActive(false);
         
-        // turn off player, turn on credits replay panel  (and activate camera?)
+        // turn off player, turn on credits replay panel
         thePlayerPanel.SetActive(false);
         thePlayer.SetActive(false);
         
@@ -196,5 +199,20 @@ public class InstructionPanelController : MonoBehaviour
         // show high scores
         theHighScoreScript.ShowHighScoresPanel(true);
         theHighScoreScript.TurnOnAsk();
+    }
+
+    void ActivateGameExitPanel()
+    {
+        // Turn on Game exit panel (overlay on top of Instruction panel), & disable user input in Player controller for now
+        thePlayer.GetComponent<PlayerController>().SetAnotherPanelInControl(true);
+
+        // disable instruction panel
+        //gameObject.SetActive(false);
+
+        // turn off player character, turn on credits replay panel  (and activate camera?)
+        thePlayerPanel.SetActive(false);
+        thePlayer.SetActive(false);
+
+        theGameExitPanel.SetActive(true);
     }
 }

@@ -316,8 +316,8 @@ public class EnemyController : MonoBehaviour
                 {
                     startAttackTime = Time.realtimeSinceStartup;
 
-                    // only decay health if player hasn't recently died
-                    if (!theGameControllerScript.HasPlayerJustDied())
+                    // only decay health if player hasn't recently died and we aren't in an escape panel (health decay paused)
+                    if (!theGameControllerScript.HasPlayerJustDied() && !theGameControllerScript.IsHealthCountdownPaused())
                     {
                         theGameControllerScript.UpdatePlayerHealth(hitDamage);
                     }

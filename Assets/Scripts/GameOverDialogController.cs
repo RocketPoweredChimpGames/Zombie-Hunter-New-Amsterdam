@@ -6,7 +6,7 @@ using UnityEngine.UIElements;
 
 public class GameOverDialogController : MonoBehaviour
 {
-    private GameObject  thePlayer;            // our Player
+    /*private GameObject  thePlayer;            // our Player
     private GameObject  theGameController;    // game controller
     private GameplayController theGameScript; // game controller script
     
@@ -19,12 +19,13 @@ public class GameOverDialogController : MonoBehaviour
 
     private Rect windowRect = new Rect((Screen.width - 200) / 2, (Screen.height - 300) / 2, 400, 100); // 400x100 box at centre of screen
     private bool bShow = false; // show as required
+    */
 
     // Start is called before the first frame update
     void Start()
     {
         
-
+/*
         // find game controller / script
         theGameController = GameObject.FindGameObjectWithTag("GameController");
         theGameScript     = theGameController.GetComponent<GameplayController>();
@@ -40,10 +41,12 @@ public class GameOverDialogController : MonoBehaviour
         // set audio source component & mixer
         theAudioSource    = GetComponent<AudioSource>();
         theMixer          = Resources.Load("Music") as AudioMixer; // from created "Resources/Music/..." folder in heirarchy
+*/
     }
 
     void OnGUI()
     {
+        /*
         // open dialog when needed
         if (bShow)
         {
@@ -61,12 +64,13 @@ public class GameOverDialogController : MonoBehaviour
                 windowRect = GUI.Window(0, windowRect, DialogWindow, "QUIT GAME"); // calls 'DialogWindow' function and shows it
             }
         }
+        */
     }
 
     // display this window
     void DialogWindow(int windowID)
     {
-        float y = 20;
+        /*float y = 20;
         GUI.Label(new Rect(5, y, windowRect.width, 20), "ARE YOU SURE?");
 
         // resume game
@@ -95,19 +99,20 @@ public class GameOverDialogController : MonoBehaviour
             StartCoroutine("GameFinished");
             //bShow = false;
         }
+        */
     }
 
     // To open the dialogue from outside of the script.
     public void Open()
     {
-        bShow = true;
+        //bShow = true;
     }
 
     // final termination of game
-    IEnumerator GameFinished()
-    {
-        yield return new WaitForSeconds(theAudioSource.clip.length); // wait for end of goodbye voice
-        theGameScript.PauseGame(false); // otherwise App quit below won't work if in game Mode
-        Application.Quit();
-    }
+   // IEnumerator GameFinished()
+    //{
+        //yield return new WaitForSeconds(theAudioSource.clip.length); // wait for end of goodbye voice
+        //theGameScript.PauseGame(false); // otherwise App quit below won't work if in game Mode
+        //Application.Quit();
+    //}
 }

@@ -10,12 +10,15 @@ using UnityEngine.UI;
 
 public class HighScoreTableController : MonoBehaviour
 {
-    private GameObject thePlayer           = null;   // the player - needed?
+    private GameObject thePlayer           = null;   // the player
     private Camera     theMainCamera       = null;   // main camera
-    private GameObject theInstructionPanel = null;   // the instructions panel
+    
+    private GameObject theInstructionPanel = null;   // instructions panel
     private GameObject theScoreLivesPanel  = null;   // player scoring panel
+    private GameObject theGameExitPanel    = null;   // game exit control panel
+
     private GameObject theReturnString     = null;   // disable display of string due to now including a highscore table!
-    private GameObject theGameController   = null;   // the gameplay controller
+    private GameObject theGameController   = null;   // gameplay controller
 
     private Transform entryContainer;                    // container in GUI which holds high score entry templates / is used for position purposes
     private Transform entryTemplate;                     // high score entry template (for each highscore entry (position, score, name))
@@ -77,6 +80,13 @@ public class HighScoreTableController : MonoBehaviour
         enterNameText       = GameObject.Find("Enter Username Text");
         enterNameBackground = GameObject.Find("Enter Username Background");
         theGameController   = GameObject.Find("GameplayController");
+        theGameExitPanel    = GameObject.Find("Game Exit Panel"); // needed as we can press Escape in here too
+
+        // check if we found it - but don't disable here as Instruction panel does this
+        if (!theGameExitPanel)
+        {
+            Debug.Log("Can't find Game Exit Panel from High Score Table Controller Panel Awake()");
+        }
 
         // and turn them all off, username input is turned off in Start() as need to add listener there
         if (confirmDeleteText != null)
@@ -540,10 +550,24 @@ public class HighScoreTableController : MonoBehaviour
             askHiscoreDelete.gameObject.SetActive(false);
         }
     }
+    void ActivateGameExitPanel()
+    {
+        // Turn on Game exit panel (overlay on top of Instruction panel)
+        theGameExitPanel.SetActive(true);
+    }
 
     // Update is called every frame
     public void Update()
     {
+        // always check for escape key regardless of where we are
+        if (Input.GetKeyDown(KeyCode.Escape))
+        {
+            // activate Game exit panel, and disable this one
+            bWaitingForUsernameInput = false;
+            Debug.Log("Escape called in Highscore Panel");
+            ActivateGameExitPanel();
+        }
+
         if (!bWaitingForUsernameInput)
         {
             // we are not waiting for username to be input - so process other inputs
