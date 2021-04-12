@@ -75,6 +75,11 @@ TagManager:
   - Fire Hydrant
   - Shots Left
   - Shots Reload Count
+  - Tree Stump
+  - Sky Platform Entry
+  - Sky Platform Exit
+  - Plasma Effect
+  - Smart Bomb Explosion
   layers:
   - Default
   - TransparentFX

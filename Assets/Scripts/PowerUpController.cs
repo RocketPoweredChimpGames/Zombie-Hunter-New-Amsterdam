@@ -118,13 +118,16 @@ public class PowerUpController : MonoBehaviour
         foreach (Light current in theLightComponent)
         {
             // must be a light - illuminate if night mode, switch off otherwise
-            if (thePlayerControlScript.IsNightMode() == true)
+            if (current != null)
             {
-                current.intensity = 28f;
-            }
-            else
-            {
-                current.intensity = 0f;
+                if (thePlayerControlScript.IsNightMode() == true)
+                {
+                    current.intensity = 28f;
+                }
+                else
+                {
+                    current.intensity = 0f;
+                }
             }
         }
     }

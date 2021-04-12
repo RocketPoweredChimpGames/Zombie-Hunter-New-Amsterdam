@@ -17,25 +17,33 @@ public class SpawnManager : MonoBehaviour
     private GameplayController theGameManager;
     private GameObject thePlayer;
 
-    // testing  - ALL TIMES BELOW allow for two spawn zones now, i.e. a drone will appear every 12s in zone you are in
+    // ALL TIMES BELOW allow for two spawn zones now, i.e. a drone will appear every 12s in zone you are in
 
+    /*
     private float droneSpawnInterval     = 6.0f;  // spawn a drone every 6 seconds (or 12s in zone you're in now)
     private float warriorSpawnInterval   = 6.0f;  // spawn a warrior every 6 seconds until we have a maximum number
     private float powerPillSpawnInterval = 5.0f;  // spawn a power up pill every 10 seconds
+    */
+    
+    // 5th Oct 2020 ALL TIMES BELOW allow for FOUR spawn zones now, i.e. a drone will appear every 12s in zone (1 or 2 only)
+    // and every 10 seconds in each of the 4 zones
+    private float droneSpawnInterval     = 6.0f;  // spawn a drone every 6 seconds (or 12s in zone you're in now)
+    private float warriorSpawnInterval   = 4.0f;  // spawn warrior every 4 seconds until maximum (1 every 16 secs in YOUR current zone)
+    private float powerPillSpawnInterval = 3.5f;  // spawn a power up every 14 seconds (in the zone YOU are currently in)
 
     // used for waves of enemies
     public int maxDronesPerSpawn       = 3;
     public int maxWarriorsPerSpawn     = 3;
     public int maxWarriorsOnScreen     = 60;
-    public int currentWarriorsPerSpawn = 1; // starts at one, increases with wave numbers to max of maxPerSpawn
-
-    public bool startedSpawning = false;
+    public int currentWarriorsPerSpawn = 1;       // starts at one, increases with wave numbers to max of maxPerSpawn
+    public int nSpawnAreas             = 4;       // number of spawn zones on this level
+    public bool startedSpawning        = false;   // have we started spawning
 
     // used to select next spawn zone, currently only 2 zones each, but could be more (& different) later
     // so leaving these individual variables in for now!
-    int warriorSpawnZone = 0; // area for next warrior (zombie) spawn
-    int droneArea        = 0; // area for next drone spawn
-    int powerUpSpawnZone = 0; // area for next powerUp spawn
+    int warriorSpawnZone = 0; // area for next enemy (zombie) spawn
+    int droneArea        = 0; // area for next drone spawn ( 1 or 2 currently
+    int powerUpSpawnZone = 0; // area for next powerup spawn
 
     
     // Start is called before the first frame update
@@ -92,7 +100,7 @@ public class SpawnManager : MonoBehaviour
 
             warriorSpawnZone++; // increment zone
 
-            if (warriorSpawnZone > 2)
+            if (warriorSpawnZone > nSpawnAreas)
             {
                 warriorSpawnZone = 1; // set to original
             }
@@ -106,18 +114,20 @@ public class SpawnManager : MonoBehaviour
             {
                 for (int iSpawn = 0; iSpawn < nToSpawnNow; iSpawn++)
                 {
-                    // spawn enemies at different random places
+                    // Spawn enemies at different random places
+                    // Unity uses 10 x 10 scale for 1 display unit on screen,
+                    // SO, screen positions in Editor relate to the ORIGINAL plane size x SCALE FACTOR the plane was scaled up by.
+                    //
+                    // original spawn zone playfield
+                    // randomX = Random.Range(  8f, 50f);
+                    // randomZ = Random.Range(-58f, 55f);
 
                     float randomX   = 0f;
                     float randomZ   = 0f;
 
                     if (warriorSpawnZone == 1)
                     {
-                        // original spawn zone playfield
-                        // randomX = Random.Range(  8f, 50f);
-                        // randomZ = Random.Range(-58f, 55f);
-
-                        // new bigger area by original player site
+                        // main area at startup
                         randomX = Random.Range(10f, 160f);
                         randomZ = Random.Range(0f,  175f);
                         //Debug.Log("Spawning Warrior in Zone 1");
@@ -125,15 +135,32 @@ public class SpawnManager : MonoBehaviour
                     
                     if (warriorSpawnZone == 2)
                     {
-                        // top left near smaller posh big building / down side of lake 
-                        // Don't forget Unity uses 10x10 scale for 1 unit!
-                        // so screen positions in Editor relate to original x SCALE FACTOR used on original 10x10 unit plane.
+                        // top left near HQ building / left side of central lake 
                         randomX = Random.Range(-175f, -145f);
                         randomZ = Random.Range(-150f,  190f);
 
                         //Debug.Log("Spawning Warrior in Zone 2");
                     }
+                    
+                    if (warriorSpawnZone == 3)
+                    {
+                        // main zone, bottom park area
+                        randomX = Random.Range(-130f, 190f);
+                        randomZ = Random.Range(-140f,-195f);
 
+                        //Debug.Log("Spawning Warrior in Zone 3");
+                    }
+                    
+                    if (warriorSpawnZone == 4)
+                    {
+                        // sky platform - central area
+                        randomX = Random.Range( 450f,570f);
+                        randomZ = Random.Range(-170f, 55f);
+
+                        //Debug.Log("Spawning Warrior in Zone 4");
+                    }
+
+                    // spawn it
                     Vector3    randomSpawnPos = new Vector3(randomX, warriorToSpawn.transform.position.y, randomZ);
                     GameObject newWarrior;
 
@@ -154,7 +181,7 @@ public class SpawnManager : MonoBehaviour
         {
             // don't spawn all the time
             // Spawns Drones in the air
-            GameObject droneToSpawn = Drones[0];  // for testing only
+            GameObject droneToSpawn = Drones[0];  // originlly for testing only - now only one type spawned
 
             if (droneToSpawn != null)
             {
@@ -163,7 +190,7 @@ public class SpawnManager : MonoBehaviour
 
                 droneArea++; // increment drone spawn area
 
-                if (droneArea > 2)
+                if (droneArea > nSpawnAreas)
                 {
                     // only 2 zones at present
                     droneArea = 1;
@@ -221,7 +248,7 @@ public class SpawnManager : MonoBehaviour
         {
             powerUpSpawnZone++;
 
-            if (powerUpSpawnZone > 2)
+            if (powerUpSpawnZone > nSpawnAreas)
             {
                 powerUpSpawnZone = 1; // reset to original zone
             }
@@ -229,26 +256,41 @@ public class SpawnManager : MonoBehaviour
             float randomX = 0f;
             float randomZ = 0f;
 
-            for (int i = 0; i < 2; i++)
+            for (int i = 0; i < nSpawnAreas; i++)
             {
                 if (powerUpSpawnZone == 1)
                 {
-                    // original spawn zone playfield
-                    //randomX = Random.Range(  8f, 50f);
-                    //randomZ = Random.Range(-58f, 55f);
-
                     // new bigger area by original player site
                     randomX = Random.Range(10f, 160f);
                     randomZ = Random.Range(0f, 175f);
                 }
                 if (powerUpSpawnZone == 2)
                 {
-                    // top left near smaller posh big building / lake
+                    // top left near HQ / lake
                     randomX = Random.Range(-40f, -160f);
                     randomZ = Random.Range( 15f, 200f);
                 }
-                
-                Vector3    randomSpawnPos = new Vector3(randomX, 2, randomZ);
+
+                if (powerUpSpawnZone == 3)
+                {
+                    // main zone, bottom park area
+                    randomX = Random.Range(-130f, 190f);
+                    randomZ = Random.Range(-140f, -195f);
+
+                    //Debug.Log("Spawning powerup in Zone 3");
+                }
+
+                if (powerUpSpawnZone == 4)
+                {
+                    // sky platform - central area
+                    randomX = Random.Range(450f, 570f);
+                    randomZ = Random.Range(-170f, 55f);
+
+                    //Debug.Log("Spawning Powerup in Zone 4");
+                }
+
+
+                Vector3 randomSpawnPos = new Vector3(randomX, 2, randomZ);
                 GameObject newPowerup;
                 float timeSpawned = Time.realtimeSinceStartup;
 
@@ -256,7 +298,6 @@ public class SpawnManager : MonoBehaviour
                 theGameManager.SetPowerUpEntry(newPowerup, timeSpawned); // store object & time of creation in game manager
             }
         }
-
     }
 
     // Returns a currently unallocated patrol location

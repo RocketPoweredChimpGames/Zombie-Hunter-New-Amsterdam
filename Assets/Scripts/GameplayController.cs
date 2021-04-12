@@ -380,8 +380,6 @@ public class GameplayController : MonoBehaviour
             // start next wave
             enemyWaveNumber++;
             StartWaveNumber(enemyWaveNumber);
-
-            
         }
         else
         {

@@ -272,7 +272,7 @@ public class EnemyController : MonoBehaviour
 
         }
 
-        // NOTE: *** Changed Priority of project - Enemies always attack Player and don't do any patrol /or require energy! ***
+        // NOTE: *** Changed project - Enemies always attack Player and don't do any patrolling /or require energy! ***
         onAttack = true; // DO NOT REMOVE THIS
 
         if (onAttack)
@@ -308,7 +308,7 @@ public class EnemyController : MonoBehaviour
 
             
 
-            if (attackingPlayer)
+            if (attackingPlayer && !IsDying())
             {
                 // only decrease player health every few seconds from startAttackTime
                 if (Time.realtimeSinceStartup + healthPeriod >= startAttackTime) 
@@ -365,9 +365,9 @@ public class EnemyController : MonoBehaviour
                     // use Movetowards() and leave a small gap inbetween player and zombie to avoid Character controller Y-Axis 'JUMP UP' problem
                     if (!attackingPlayer)
                     {
-                        gameObject.transform.position = Vector3.MoveTowards(transform.position, thePlayer.transform.position, Time.deltaTime * FindCurrentEnemySpeed());
+                        gameObject.transform.position = Vector3.MoveTowards(transform.position, thePlayer.transform.position, 
+                            Time.deltaTime * FindCurrentEnemySpeed());
                     }
-                    //gameObject.transform.position = Vector3.MoveTowards(transform.position, thePlayer.transform.position, Time.deltaTime * FindCurrentEnemySpeed());
                 }
                 else
                 {
@@ -386,7 +386,7 @@ public class EnemyController : MonoBehaviour
             {
                 // nothing playing - so play a clip
                 AudioClip clipToPlay;
-                int clipNum = UnityEngine.Random.Range(0, 2);
+                int clipNum = UnityEngine.Random.Range(0, 3);
 
                 switch (clipNum)
                 {
@@ -560,11 +560,11 @@ public class EnemyController : MonoBehaviour
 
     IEnumerator CancelIsShot()
     {
-        // wait for exact duration of animation "Zombie_fallingback" (42 frames at 30 fps = 1.4s) plus 1s for dead on ground
+        // wait for exact duration of animation "Zombie_fallingback" (42 frames at 30 fps = 1.4s)
         yield return new WaitForSeconds(gameObject.GetComponent<Animator>().GetCurrentAnimatorStateInfo(0).length);
 
         // now has been given chance for animation, so prevent it repeating
-        theAnimator.SetBool("b_IsShot", false);
+        theAnimator.SetBool("b_isShot", false);
         theAnimator.SetBool("b_isDead", true);
 
         yield return new WaitForSeconds(0.1f);

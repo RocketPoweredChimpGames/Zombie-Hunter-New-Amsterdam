@@ -18,7 +18,6 @@ public class MissileController : MonoBehaviour
     private Rigidbody missileRb; // missile Rb
     private Vector3  realGravity;
     private float    gravityModifier = 1.0f;
-    private float    speed           = 1.0f;
 
     public AudioClip missileExplosion; // explosion sound
 

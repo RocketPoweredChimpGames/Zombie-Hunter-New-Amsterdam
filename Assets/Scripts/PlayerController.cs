@@ -17,9 +17,10 @@ public class PlayerController : MonoBehaviour
     private GameplayController theGameControllerScript;  // game controller script
 
     // particle effects
-    private GameObject   theFireFlies    = null;  // fire flies for night mode
-    private GameObject[] theCandles      = null;  // table candles for night mode effects
-    public  GameObject   theFlameThrower = null;  // flamethrower effect for gun
+    private GameObject   theFireFlies     = null;  // fire flies for night mode
+    private GameObject[] theCandles       = null;  // table candles for night mode effects
+    public  GameObject   theFlameThrower  = null;  // flamethrower effect for gun
+    private GameObject   theBombExplosion = null;  // smart bomb explosion particle effect
 
     // spot light
     private GameObject   theHeadLamp = null;  // player headlamp
@@ -28,18 +29,21 @@ public class PlayerController : MonoBehaviour
     private GameObject[] theFlickeryLanterns; // Flickering Lanterns (move this to game controller?)
 
     // buttons
-    private Button      smartBombButton;  // smart bomb indicator button
+    private Button      smartBombButton;   // smart bomb indicator button
 
     // sound clips
-    public  AudioClip   laserFire;        // laser gunfire sound
-    public  AudioClip   walkMovement;     // walking sound
-    public  AudioClip   zombieHit;        // zombie hit
-    public  AudioClip   youReallyWannaGo; // "you wanna go" - escape key voice
-    public  AudioClip   emptyGunNoise;    // just an air noise
-    public  AudioClip   reloadVoice;      // reload gun voice
-    private AudioSource theAudio;         // audio source
-    private AudioMixer  theMixer;         // audio mixer
-    private string      _outputMixer;     // holds mixer struct
+    public  AudioClip   laserFire;         // laser gunfire sound
+    public  AudioClip   walkMovement;      // walking sound
+    public  AudioClip   zombieHit;         // zombie hit
+    public  AudioClip   youReallyWannaGo;  // "you wanna go" - escape key voice
+    public  AudioClip   emptyGunNoise;     // just an air noise
+    public  AudioClip   reloadVoice;       // reload gun voice
+    public  AudioClip   smartBombExplodes; // smart bomb explosion
+    public  AudioClip   smartBombUsed;     // smart bomb unavailable noise
+
+    private AudioSource theAudio;          // audio source
+    private AudioMixer  theMixer;          // audio mixer
+    private string      _outputMixer;      // mixer struct which we set with mixer group to use
 
     // sky box materials
     public Material daySkyBox;
@@ -48,18 +52,20 @@ public class PlayerController : MonoBehaviour
     // gravity & speed
     private Vector3 realGravity;          // real world gravity vector (0f,-9.8f,0f)
     public  float   gravityModifier = 1f; // how much extra gravity force is applied
-    //private float   speed = 12f;          // player movement speed
+    //private float   speed = 12f;          // player movement speed - *not used*
 
     // scoring
-    private int pointsPerEnemyHitShot = 1;    // points per hit
-    private int maxPointsPerEnemy     = 10;   // gamePlayController "points per hit" multiplier - set to 10 as 5 hits per enemy to destroy
+    private int pointsPerEnemyHitShot = 5;    // points per hit
+    private int maxPointsPerEnemy     = 25;   // gamePlayController "points per hit" multiplier - set to 25 as 5 hits per enemy to destroy
     private bool smartBombAvailable   = true; // smart bomb availability to player
 
-    // weapon fire count
+    // weapon firing vars
     private int   shotsFired           = 0;     // shots fired this magazine
     private int   maxShotsInMagazine   = 100;   // shots before reload required
     private bool  bGunAvailable        = true;  // gun always available at start
     private bool  bWeaponReloadStarted = false; // have we started timer to reload already
+    public float  damageDone           = 20f;   // damage per hit
+    public float  rangeForHits         = 2f;    // range for hits
 
     // game boundaries
     private int boundaryZ = 208; // top & bottom (+-) boundaries on Z axis from centre (0,0,0)
@@ -264,12 +270,25 @@ public class PlayerController : MonoBehaviour
 
         if (theFlameThrower == null)
         {
-            Debug.Log("Can't find Flamethrower object, is it unticked (i.e. disabled), not tagged, or missing from player object in editor?");
+            Debug.Log("Can't find Flamethrower object, is it unticked (i.e. disabled), not tagged, or missing in editor?");
         }
         else
         {
             // disable for now
             theFlameThrower.SetActive(false);
+        }
+
+        // find the smart bomb explosion effect as we hide it on startup
+        theBombExplosion = GameObject.FindGameObjectWithTag("Smart Bomb Explosion");
+
+        if (theBombExplosion == null)
+        {
+            Debug.Log("Can't find Smart Bomb object, is it unticked (i.e. disabled), not tagged, or missing from in editor?");
+        }
+        else
+        {
+            // disable for now
+            theBombExplosion.SetActive(false);
         }
     }
 
@@ -277,7 +296,7 @@ public class PlayerController : MonoBehaviour
     IEnumerator ShootFlamethrower()
     {
         //  Plays Flamethrower particle effect
-        yield return new WaitForSeconds(0.2f); // wait for gun shooting animation to start elsewhere
+        yield return new WaitForSeconds(0.1f); // wait for gun shooting animation to start elsewhere
 
         theFlameThrower.SetActive(true); // set it active
 
@@ -344,7 +363,7 @@ public class PlayerController : MonoBehaviour
             ShootGun();    
         }
 
-        yield return new WaitForSeconds(0.2f);
+        yield return new WaitForSeconds(0.1f);
         bGunShooting = false;
     }
 
@@ -526,7 +545,6 @@ public class PlayerController : MonoBehaviour
                             StartCoroutine("DelayGunShot");
                         }
 
-                        //ShootGun();
                         bReloadVoice = false; // allow "empty gun" noise now as reload voice has just played
                     }
                     else 
@@ -616,6 +634,11 @@ public class PlayerController : MonoBehaviour
             Debug.Log("Entered HQ Zone!");
             ActivateHQEntrySpots(true);
         }
+       /* else if (other.gameObject.CompareTag("Sky Platform Flame On") && IsNightMode())
+        {
+            // turn on the sky platform exhaust effect as we can see it now
+            Debug.Log("Entered Sky Platform Exhaust Visible Zone!");
+        }*/
     }
 
     // detect triggers set up which can be de-activated by the player
@@ -800,6 +823,31 @@ public class PlayerController : MonoBehaviour
         }
     }
 
+    private float smartBombRange = 60f; // try to start with
+
+
+    // smart bomb explosion effect
+    IEnumerator SmartBombExplosion()
+    {
+        // play bomb explosion particle effect
+        theBombExplosion.transform.position = new Vector3(playerRb.transform.position.x, 
+            playerRb.transform.position.y +3f, playerRb.transform.position.z+1f);
+
+        
+        theBombExplosion.SetActive(true); // set it active & play smart bomb sound
+
+        theAudio.enabled = true;
+        _outputMixer = "No Change"; // group to output the audio listener to
+        GetComponent<AudioSource>().outputAudioMixerGroup = theMixer.FindMatchingGroups(_outputMixer)[0];
+        
+        theAudio.clip = smartBombExplodes;
+        theAudio.PlayOneShot(smartBombExplodes, 1f);
+
+        yield return new WaitForSeconds(2.0f);
+
+        theBombExplosion.SetActive(false); // disable it again
+    }
+
     // DestroyAllEnemies
     public void DestroyAllEnemies()
     {
@@ -808,6 +856,9 @@ public class PlayerController : MonoBehaviour
         {
             smartBombAvailable = false; // always first line of code in here!
             enemyAttacker = null;
+
+            StartCoroutine("SmartBombExplosion");
+            
 
             // find and destroy all enemies!
             // reset bomb caption, and disable it
@@ -820,29 +871,48 @@ public class PlayerController : MonoBehaviour
             // get all enemies
             GameObject[] enemies = GameObject.FindGameObjectsWithTag("Enemy Warrior Base Object");
 
-            // destroy them one by one
-            foreach (GameObject enemy in enemies)
-            {
-                // destroy them all, calling dyingstate() allows a short delay for sound
-                // and animations to finish playing before destroying them
-                if (enemy != null)
-                {
-                    enemy.GetComponentInChildren<EnemyController>().DyingState();
+            int nEnemies = enemies.Length;
+            int nKilled = 0;
 
-                    if (!theGameControllerScript.IsGameOver())
+            //foreach (GameObject enemy in enemies)
+            for (int n=0; n <nEnemies; n++)
+            {
+                // destroy only the ones within range of the smart bomb, calling dyingstate() allows a short delay for sound
+                // and animations to finish playing before destroying them
+                if (enemies[n] != null)
+                {
+                    // get the warrior inside it from the scripts gameObject!
+                    if (Vector3.Distance(transform.position, enemies[n].GetComponentInChildren<EnemyController>().gameObject.transform.position) <= smartBombRange)
                     {
-                        // gives max points to the player (for each enemy) for killing them, if game isn't over, should really be 
-                        // max points minus hit points per object but hey run out of time to do stuff!
-                        theGameControllerScript.UpdatePlayerScore(pointsPerEnemyHitShot * maxPointsPerEnemy); // give max points for each enemy destroyed
+                        enemies[n].GetComponentInChildren<EnemyController>().DyingState();
+                        nKilled++;
+
+                        if (!theGameControllerScript.IsGameOver())
+                        {
+                            // gives max points to the player (for each enemy) for killing them, if game isn't over, should really be 
+                            // max points minus hit points per object but hey run out of time to do stuff!
+                            theGameControllerScript.UpdatePlayerScore(pointsPerEnemyHitShot * maxPointsPerEnemy); // give max points for each enemy destroyed
+                        }
                     }
                 }
             }
+
+            Debug.Log("Number toasted with smart bomb = " + nKilled);
+        }
+        else
+        {
+            // play beep - used noise
+            theAudio.enabled = true;
+            _outputMixer = "No Change"; // group to output the audio listener to
+            GetComponent<AudioSource>().outputAudioMixerGroup = theMixer.FindMatchingGroups(_outputMixer)[0];
+
+            theAudio.clip = smartBombUsed;
+            theAudio.PlayOneShot(smartBombUsed, 1f);
+
         }
     }
 
-    public float damageDone   = 20f;
-    public float rangeForHits = 2f;
-
+    
     // re enable smart bomb button
     public void SmartBombReset()
     {
@@ -888,6 +958,12 @@ public class PlayerController : MonoBehaviour
     void ShootGun()
     {
         shotsFired++; // increment shots fired
+
+        // show message nearly empty
+        if (maxShotsInMagazine -shotsFired <= 5)
+        {
+            theGameControllerScript.PostStatusMessage("WEAPON NEARLY EMPTY!");
+        }
 
         // check if we have already exceeded magazine contents before allowing shot
         if (shotsFired >= maxShotsInMagazine)
