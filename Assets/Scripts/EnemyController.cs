@@ -58,7 +58,8 @@ public class EnemyController : MonoBehaviour
     public  int   hitDamage              = -1;     // damage per hit from zombie
     private int   hitCount               = 0;      // how many times has this enemy been hit by player gun
     private int   maxHits                = 5;      // max number of times hit before dying
-    
+    private bool  dyingPlaying           = false;  // is dying voice playing
+
     // Playfield Boundaries (change these if ever resizing play area)
     private int   boundaryZ              = 104;    // top & bottom (+-) boundaries on Z axis from centre (0,0,0)
     private int   boundaryX              = 33;     // left & right (+-) boundaries on X axis from centre (0,0,0)
@@ -313,8 +314,13 @@ public class EnemyController : MonoBehaviour
                 // only decrease player health every few seconds from startAttackTime
                 if (Time.realtimeSinceStartup + healthPeriod >= startAttackTime) 
                 {
-                  startAttackTime = Time.realtimeSinceStartup;
-                  theGameControllerScript.UpdatePlayerHealth(hitDamage);
+                    startAttackTime = Time.realtimeSinceStartup;
+
+                    // only decay health if player hasn't recently died
+                    if (!theGameControllerScript.HasPlayerJustDied())
+                    {
+                        theGameControllerScript.UpdatePlayerHealth(hitDamage);
+                    }
                 }
             }
 
@@ -482,14 +488,25 @@ public class EnemyController : MonoBehaviour
 
         if (collision.gameObject.CompareTag("Player"))
         {
+            // ACTUALLY DOESN'T USE THIS NOW BUT LEFT IN
+            // DUE TO 'Jumping UPwards" PROBLEMS WITH COLLIDERS
+            //
             // we are attacking the player or have collided with him - same thing!
             //Debug.Log("Zombie attacking Player!\n");
-            theGameControllerScript.UpdatePlayerHealth(hitDamage);
-            theGameControllerScript.StatusDisplay.SetText("LOOK OUT! THERE'S A ZOMBIE ABOUT!");
+            if (!theGameControllerScript.HasPlayerJustDied())
+            {
+                // ok to add damge as player hasn't recently died
+                theGameControllerScript.UpdatePlayerHealth(hitDamage);
+                theGameControllerScript.StatusDisplay.SetText("LOOK OUT! THERE'S A ZOMBIE ABOUT!");
+            }
+            else
+            {
+                Debug.Log("Player has just died!");
+            }
         }
     }
 
-    bool dyingPlaying = false;
+    
 
     public bool IsDying()
     {

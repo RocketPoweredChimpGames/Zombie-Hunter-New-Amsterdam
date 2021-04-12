@@ -33,7 +33,7 @@ public class PlayerController : MonoBehaviour
 
     // sound clips
     public  AudioClip   laserFire;         // laser gunfire sound
-    public  AudioClip   walkMovement;      // walking sound
+    public  AudioClip   walkMovement;      // breathing sound now
     public  AudioClip   zombieHit;         // zombie hit
     public  AudioClip   youReallyWannaGo;  // "you wanna go" - escape key voice
     public  AudioClip   emptyGunNoise;     // just an air noise
@@ -59,22 +59,26 @@ public class PlayerController : MonoBehaviour
     private int maxPointsPerEnemy     = 25;   // gamePlayController "points per hit" multiplier - set to 25 as 5 hits per enemy to destroy
     private bool smartBombAvailable   = true; // smart bomb availability to player
 
-    // weapon firing vars
+    // weapon firing stuff
     private int   shotsFired           = 0;     // shots fired this magazine
     private int   maxShotsInMagazine   = 100;   // shots before reload required
     private bool  bGunAvailable        = true;  // gun always available at start
     private bool  bWeaponReloadStarted = false; // have we started timer to reload already
-    public float  damageDone           = 20f;   // damage per hit
-    public float  rangeForHits         = 2f;    // range for hits
+    private bool  bReloadVoice         = false; // no empty gun noise till this is set true
+    private bool  bGunShooting         = false; // is gun currently shooting, delayed by coroutine to prevent spamming space key
+    public  float damageDone           = 20f;   // damage% per hit on enemy
+    public  float rangeForHits         = 2.1f;  // range for raycast for hits
 
-    // game boundaries
+    private bool  bBreathingPlaying    = false; // have we started playing audio (on forward/back movement)
+
+    // game boundaries (left in, not used now)
     private int boundaryZ = 208; // top & bottom (+-) boundaries on Z axis from centre (0,0,0)
     private int boundaryX = 208;  // left & right (+-) boundaries on X axis from centre (0,0,0)
 
     // night mode toggle
     public bool bNightModeOn = false;
 
-    // bool set by panels to stop player input going ahead here until they say so
+    // flag set by panels to stop player input going ahead here until they say so
     bool bAnotherPanelInControl = false;
 
     // character controller stuff - added 25/9/2020
@@ -82,7 +86,7 @@ public class PlayerController : MonoBehaviour
     private Vector3 playerVelocity;
     private bool    groundedPlayer;
     private float   playerSpeed  = 15.0f;
-    private float   jumpHeight   = 1.0f;
+    private float   jumpHeight   = 1.0f; // not used yet
     private float   gravityValue = -9.81f;
 
     // from another example online
@@ -91,7 +95,7 @@ public class PlayerController : MonoBehaviour
     //
     // end example code
 
-    // stuff required for BUG in Unity character controller! - not used at minute now
+    // stuff required for BUG in Unity character controller - overlapping collisions causing character 'jump up' - not used at minute
     private int            overlappingCollidersCount = 0;
     private Collider[]     overlappingColliders      = new Collider[256];
     private List<Collider> ignoredColliders          = new List<Collider>(256);
@@ -130,17 +134,18 @@ public class PlayerController : MonoBehaviour
 
         ignoredColliders.Clear();
     }
-    // END OF stuff required for BUG in Unity character controller! Ignores Collisions which make it 'jump up'
+    // END OF stuff required for BUG in Unity character controller! ignore collisions which make player 'jump up'
 
 
     public void SetAnotherPanelInControl(bool inControl)
     {
+        // another display panel is using display - so disallow inputs
         bAnotherPanelInControl = inControl;
     }
 
     public bool IsAnotherPanelInControl()
     {
-        // needed by Instruction panel to see if some other user panel is currently in control
+        // needed by Instructions (the main control panel) panel to see if another user panel is currently in control
         return bAnotherPanelInControl;
     }
 
@@ -191,7 +196,7 @@ public class PlayerController : MonoBehaviour
         // find the flickering wall lanterns in scene
         theFlickeryLanterns = GameObject.FindGameObjectsWithTag("Wall Lantern Flickering");
 
-        // turn off streetlight light bulbs!
+        // turn off streetlight (and any other tagged this) light bulbs!
         theStreetlightBulbs = GameObject.FindGameObjectsWithTag("Light Bulb");
 
         foreach (GameObject bulb in theStreetlightBulbs)
@@ -217,7 +222,6 @@ public class PlayerController : MonoBehaviour
 
         // get the animator
         theAnimator = this.GetComponent<Animator>();
-        //theAnimator = this.GetComponentInChildren<Animator>();
 
         if (theAnimator == null)
         {
@@ -236,7 +240,7 @@ public class PlayerController : MonoBehaviour
             theFireFlies.SetActive(false);
         }
 
-        // Find Headlamp and switch off
+        // Find the Player's Headlamp and switch off
         theHeadLamp = GameObject.FindGameObjectWithTag("Player Head Lamp");
 
         if (theHeadLamp == null)
@@ -249,6 +253,7 @@ public class PlayerController : MonoBehaviour
             theHeadLamp.SetActive(false);
         }
 
+        // Find the Table candles
         theCandles = GameObject.FindGameObjectsWithTag("Candles");
 
         if (theCandles == null)
@@ -262,7 +267,6 @@ public class PlayerController : MonoBehaviour
             {
                 aCandle.SetActive(false);
             }
-            
         }
 
         // find flamethrower as we hide it on startup
@@ -334,9 +338,6 @@ public class PlayerController : MonoBehaviour
         yield return new WaitForSeconds(theFlameThrower.GetComponentInChildren<ParticleSystem>().main.duration);
     }
 
-    private bool bReloadVoice      = false; // no empty gun noise till this is set true
-    private bool bBreathingPlaying = false; // have we started playing it
-
     IEnumerator PlayBreathingMovement()
     {
         if (!bBreathingPlaying)
@@ -352,8 +353,7 @@ public class PlayerController : MonoBehaviour
         bBreathingPlaying = false;
     }
 
-
-    bool bGunShooting = false; // is gun currently shooting, delayed by coroutine to prevent spamming space key
+    
 
     IEnumerator DelayGunShot()
     {
@@ -891,13 +891,14 @@ public class PlayerController : MonoBehaviour
                         {
                             // gives max points to the player (for each enemy) for killing them, if game isn't over, should really be 
                             // max points minus hit points per object but hey run out of time to do stuff!
-                            theGameControllerScript.UpdatePlayerScore(pointsPerEnemyHitShot * maxPointsPerEnemy); // give max points for each enemy destroyed
+                            //theGameControllerScript.UpdatePlayerScore(pointsPerEnemyHitShot * maxPointsPerEnemy); // give max points for each enemy destroyed
+                            theGameControllerScript.UpdatePlayerScore(maxPointsPerEnemy); // give max points for each enemy destroyed
                         }
                     }
                 }
             }
 
-            Debug.Log("Number toasted with smart bomb = " + nKilled);
+            //Debug.Log("Number toasted with smart bomb = " + nKilled);
         }
         else
         {

@@ -30,7 +30,6 @@ public class GameOverDialogController : MonoBehaviour
         theGameScript     = theGameController.GetComponent<GameplayController>();
 
         // find the player
-        //thePlayer = GameObject.FindGameObjectWithTag("Player");
         thePlayer = theGameScript.thePlayer;
 
         if (thePlayer == null)
@@ -49,24 +48,28 @@ public class GameOverDialogController : MonoBehaviour
         if (bShow)
         {
             // pause game if running
-            if (!theGameScript.IsGameOver() && theGameScript.bGameStarted)
+            if (!theGameScript.IsGameOver())
             {
-                // pause game and continue
-                theGameScript.PauseGame(true);
-                AudioListener.pause = false; // enable sound to allow voice to finish
-            }
+                if (theGameScript.bGameStarted)
+                {
+                    // pause game and continue
+                    theGameScript.PauseGame(true);
+                    //AudioListener.pause = false; // enable sound to allow voice to finish
+                }
 
-            windowRect = GUI.Window(0, windowRect, DialogWindow, "QUIT GAME"); // calls DialogWindow function and shows it
+                AudioListener.pause = false; // enable sound to allow voice to finish
+                windowRect = GUI.Window(0, windowRect, DialogWindow, "QUIT GAME"); // calls 'DialogWindow' function and shows it
+            }
         }
     }
 
-    // the actual window.
+    // display this window
     void DialogWindow(int windowID)
     {
         float y = 20;
         GUI.Label(new Rect(5, y, windowRect.width, 20), "ARE YOU SURE?");
 
-        // Resume game
+        // resume game
         if (GUI.Button(new Rect(5, y+40, windowRect.width - 10, 20), "NO"))
         {
             // Continue game if was running
@@ -77,11 +80,10 @@ public class GameOverDialogController : MonoBehaviour
             
             // enable inputs again in Player controller
             thePlayer.GetComponent<PlayerController>().SetAnotherPanelInControl(false);
-
             bShow = false; // hide dialog
         }
 
-        // Quit the game
+        // quit game
         if (GUI.Button(new Rect(5, y+20, windowRect.width - 10, 20), "YES"))
         {
             // ok we are going to quit
@@ -105,6 +107,7 @@ public class GameOverDialogController : MonoBehaviour
     IEnumerator GameFinished()
     {
         yield return new WaitForSeconds(theAudioSource.clip.length); // wait for end of goodbye voice
+        theGameScript.PauseGame(false); // otherwise App quit below won't work if in game Mode
         Application.Quit();
     }
 }

@@ -502,7 +502,7 @@ public class HighScoreTableController : MonoBehaviour
         UsernameInputField.onEndEdit.AddListener(delegate { UsernameInputOnGUI(UsernameInputField); });
         
         // disable for now
-        UsernameInputField.gameObject.SetActive(false); // disable for now
+        UsernameInputField.gameObject.SetActive(false);
         
 
         theInstructionPanel = GameObject.Find("Instructions Panel");

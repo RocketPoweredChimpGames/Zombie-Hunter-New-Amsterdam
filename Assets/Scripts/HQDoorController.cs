@@ -22,7 +22,7 @@ public class HQDoorController : MonoBehaviour
     {
         if (other.gameObject.CompareTag("Player"))
         {
-            gateAnimator.SetTrigger("HQ Gate Open");
+            //gateAnimator.SetTrigger("HQ Gate Open");
         }
     }
 
@@ -30,13 +30,13 @@ public class HQDoorController : MonoBehaviour
     {
         if (other.gameObject.CompareTag("Player"))
         {
-            gateAnimator.enabled = true;
+            //gateAnimator.enabled = true;
         }
     }
 
     void PauseAnimationEvent()
     {
-        gateAnimator.enabled = false;
+        //gateAnimator.enabled = false;
     }
 
 }

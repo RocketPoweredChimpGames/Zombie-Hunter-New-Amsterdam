@@ -95,7 +95,9 @@ public class GameplayController : MonoBehaviour
     public  int playerHealth      = 100;    // initial full health
     private int playerScore       = 0;      // initial player score
     private int highScore         = 0;      // put in a file later to keep
-    
+
+    public bool playerJustDied   = false;   // set to true if player just died to avoid new hits for a few seconds
+
     private int enemySpeedSetting = 2;      // set by Player to tell enemies speed to go at (0- slow, 1-medium, 2-normal)
 
     // game stats stuff
@@ -106,6 +108,20 @@ public class GameplayController : MonoBehaviour
 
     // sky box to use at start
     public Material theDaySkybox; // daytime sky box
+
+    public bool HasPlayerJustDied()
+    {
+        // tell enemy controller that player just died, used to prevent adding damage to new player
+        // for a little bit
+        return playerJustDied;
+    }
+
+    IEnumerator PreventHitsTimer()
+    {
+        // delay for 5 seconds to give player time to escape
+        yield return new WaitForSeconds(5f);
+        playerJustDied = false;
+    }
 
     public void ShowHighScores()
     {
@@ -641,8 +657,6 @@ public class GameplayController : MonoBehaviour
                 theAudioSource.clip = youReallyWannaGo;
                 theAudioSource.PlayOneShot(theAudioSource.clip, 1f);
 
-                //theGameControllerScript.bGameOver = true;
-                
                 // prevent any inputs in Player controller while we respond
                 thePlayer.GetComponent<PlayerController>().SetAnotherPanelInControl(true);
 
@@ -780,7 +794,8 @@ public class GameplayController : MonoBehaviour
         if (playerHealth <= 0 && !bGameOver)
         {
             // player has died (poor player!)
-            playerHealth = 0;
+            playerHealth   = 0;
+            playerJustDied = true;
             LoseALife();
         }
 
@@ -896,6 +911,11 @@ public class GameplayController : MonoBehaviour
         {
             // reset for new life
             playerHealth = 100; // reset health
+
+            // delay new hits from current enemies
+            playerJustDied = true;
+            StartCoroutine("PreventHitsTimer");
+
             PlayerHealth.SetText(playerHealth.ToString());
 
             thePlayer.GetComponent<PlayerController>().SmartBombReset(); // reset smart bomb availability
@@ -904,7 +924,7 @@ public class GameplayController : MonoBehaviour
             PlayCriticalCountdown(false); // turn off critical countdown sound
             PlayLifeLost();
 
-          //  StartCoroutine("ClearStatusDisplay"); // clears after a short delay
+            
         }
  
         LivesPlayer.text = playerLives.ToString(); // update number of lives
