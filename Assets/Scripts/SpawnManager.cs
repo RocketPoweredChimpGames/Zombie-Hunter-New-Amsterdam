@@ -315,7 +315,7 @@ public class SpawnManager : MonoBehaviour
 
             float randomTime = Random.Range(0f, 0.25f);
 
-            if ( (Time.realtimeSinceStartup - timeLastSuperPowerup) / 60f >= (superPowerInterval + randomTime))
+            if ( (Time.realtimeSinceStartup - timeLastSuperPowerup) / 60f >= (superPowerInterval + randomTime) && !theGameControllerScript.IsGamePaused())
             {
                 // Spawn the Super Powerup in current spawn zone a little bit away from Powerup just spawned
                 GameObject superPowerup = Instantiate(PowerPills[1], new Vector3(randomX + 2f, 0.1f, randomZ - 2f), Quaternion.identity); // the Super Powerup Container object

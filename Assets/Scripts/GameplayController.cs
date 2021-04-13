@@ -120,8 +120,7 @@ public class GameplayController : MonoBehaviour
 
     // Super Powerup points / expiry
     private int  superPowerupPoints   = 500;  // points for collecting a super powerup
-    //private int  superPowerupInterval = 6;    // 6 minutes to next spawn
-    private int superPowerupInterval = 3;    // 3 minutes to next spawn FOR TESTING!!!!
+    private int  superPowerupInterval = 6;    // 6 minutes to next super powerup spawn
 
     // sky box used at start
     public Material theDaySkybox; // daytime sky box

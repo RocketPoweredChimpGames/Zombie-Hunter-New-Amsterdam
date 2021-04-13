@@ -879,9 +879,6 @@ public class PlayerController : MonoBehaviour
         }
     }
 
-    
-
-
     // smart bomb explosion effect
     IEnumerator SmartBombExplosion()
     {
