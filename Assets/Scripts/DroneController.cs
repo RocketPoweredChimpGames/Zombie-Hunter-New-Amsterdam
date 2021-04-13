@@ -11,9 +11,8 @@ public class DroneController : MonoBehaviour
     private GameplayController theGameControllerScript;
 
     private float droneSpeed = 0.25f;
-    private float zBoundary = -110f; // bottom boundary of play area
+    private float zBoundary  = -(210 +20f); // bottom boundary of play area (thats +- 210)
     
-    private bool bGameStarted = false; // game started or not
     public bool missileLaunched = false;
 
     public GameObject missileToLaunch; // missile object to launch
@@ -36,7 +35,7 @@ public class DroneController : MonoBehaviour
         droneStartVectorAtHeight  = gameObject.transform.position; // it's starting position and height
 
         // drone must be above this height by the time it reaches here to avoid buildings
-        mustAvoidBuildingsVectorHeight = new Vector3(droneStartVectorAtHeight.x, 33f, 33f);
+        mustAvoidBuildingsVectorHeight = new Vector3(droneStartVectorAtHeight.x, 36f, 33f);
     }
 
     // Update is called once per frame
@@ -44,6 +43,8 @@ public class DroneController : MonoBehaviour
     {
         Vector3 currentPos = transform.position;
 
+        // destroy at a certain distance past lower boundary to simulate 
+        // flying off into distance
         if (currentPos.z <= zBoundary)
         {
             // destroy drone
@@ -53,11 +54,11 @@ public class DroneController : MonoBehaviour
         {
             // move drone on flight path, needs to bomb player if within a certain range of flight path
             // and also increase in height a bit as it goes along to avoid buildings
+            /*Vector3 droneFlightPath = new Vector3(currentPos.x, 
+                                                  currentPos.y + (mustAvoidBuildingsVectorHeight.y - currentPos.y), -115f);*/
 
-            //Vector3 droneFlightPath = new Vector3(currentPos.x, currentPos.y, -115f);
-
-            Vector3 droneFlightPath = new Vector3(currentPos.x, 
-                                                  currentPos.y + (mustAvoidBuildingsVectorHeight.y - currentPos.y), -115f);
+            Vector3 droneFlightPath = new Vector3(currentPos.x,
+                                                  currentPos.y + (mustAvoidBuildingsVectorHeight.y - currentPos.y), zBoundary -5f);
 
             Vector3 direction       = droneFlightPath - transform.position;
             transform.Translate(direction * Time.deltaTime * droneSpeed);
@@ -72,9 +73,9 @@ public class DroneController : MonoBehaviour
     }
     IEnumerator DropABomb()
     {
-        yield return new WaitForSeconds(1.5f + Random.Range(0f,1.5f));
+        yield return new WaitForSeconds(1.25f + Random.Range(0f, 1.25f));
             
-        // after 1.5s to 3 secs, we start to drop another bomb
+        // after 1.25s to 2.5 secs, we start to drop another bomb
         float xPos = transform.position.x;
         float zPos = transform.position.z;
 

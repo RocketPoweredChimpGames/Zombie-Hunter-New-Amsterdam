@@ -890,6 +890,7 @@ GameObject:
   - component: {fileID: 6544302473744267840}
   - component: {fileID: 6544302473744267843}
   - component: {fileID: -1601504429940727281}
+  - component: {fileID: 6528096864762792754}
   m_Layer: 0
   m_Name: Enemy Warrior
   m_TagString: Enemy Warrior
@@ -906,7 +907,7 @@ Transform:
   m_GameObject: {fileID: 4713487693815164066}
   m_LocalRotation: {x: 0, y: 1, z: 0, w: 0}
   m_LocalPosition: {x: 0, y: 0.15, z: 0}
-  m_LocalScale: {x: 1.6, y: 1.6, z: 1.6}
+  m_LocalScale: {x: 1.3, y: 1.3, z: 1.3}
   m_Children:
   - {fileID: 6179122993988576778}
   - {fileID: 8710652848091255794}
@@ -958,10 +959,10 @@ BoxCollider:
   m_GameObject: {fileID: 4713487693815164066}
   m_Material: {fileID: 0}
   m_IsTrigger: 0
-  m_Enabled: 1
+  m_Enabled: 0
   serializedVersion: 2
-  m_Size: {x: 1.4523515, y: 1.8110158, z: 0.5119857}
-  m_Center: {x: 0.0043359916, y: 0.9097663, z: -0.013297997}
+  m_Size: {x: 1.4397227, y: 1.8110158, z: 0.7140374}
+  m_Center: {x: -0.009555129, y: 0.90976644, z: -0.025926141}
 --- !u!195 &6544302473744267855
 NavMeshAgent:
   m_ObjectHideFlags: 0
@@ -969,9 +970,9 @@ NavMeshAgent:
   m_PrefabInstance: {fileID: 0}
   m_PrefabAsset: {fileID: 0}
   m_GameObject: {fileID: 4713487693815164066}
-  m_Enabled: 0
+  m_Enabled: 1
   m_AgentTypeID: 0
-  m_Radius: 0.5
+  m_Radius: 1
   m_Speed: 3.5
   m_Acceleration: 8
   avoidancePriority: 50
@@ -1011,6 +1012,9 @@ MonoBehaviour:
   m_EditorClassIdentifier: 
   currentDestination: {fileID: 0}
   dyingScreech: {fileID: 8300000, guid: c3be150f7c7771e478eea356fd118027, type: 3}
+  longestAttack: {fileID: 8300000, guid: 395c3064a34054843aa8655916971dd5, type: 3}
+  longAttack: {fileID: 8300000, guid: fa41e4d99c4bfb248a70e848e71680b2, type: 3}
+  shortAttack: {fileID: 8300000, guid: e566131efbcbe2e498e00d6098768478, type: 3}
   hitDamage: -1
   startAttackTime: 0
 --- !u!82 &-1601504429940727281
@@ -1109,6 +1113,20 @@ AudioSource:
     m_PreInfinity: 2
     m_PostInfinity: 2
     m_RotationOrder: 4
+--- !u!136 &6528096864762792754
+CapsuleCollider:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 4713487693815164066}
+  m_Material: {fileID: 0}
+  m_IsTrigger: 0
+  m_Enabled: 1
+  m_Radius: 0.5
+  m_Height: 1.86
+  m_Direction: 1
+  m_Center: {x: 0, y: 0.94, z: 0}
 --- !u!1 &4832604166430438451
 GameObject:
   m_ObjectHideFlags: 0

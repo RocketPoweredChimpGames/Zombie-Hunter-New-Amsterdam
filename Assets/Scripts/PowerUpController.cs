@@ -8,20 +8,23 @@ using UnityEngine.UIElements;
 
 public class PowerUpController : MonoBehaviour
 {
-    private GameObject theGameController;               // GameplayController object in scene
+    private GameObject         theGameController;       // GameplayController object in scene
     private GameplayController theGameControllerScript; // the script attached to this object
+    private PlayerController   thePlayerControlScript;  // player script for checking night mode
+    private Light[]            theLightHolder;          // array of light gameobjects with Light Components within for night mode
+    private Component[]        theLightComponent;       // need these to be able to re-activate them (how crap)
+    
+    private float lastUpdateTime;              // time was last updated
+    private float startTime;                   // time first appeared on screen
+    private float decayPeriod         = 10.0f; // decays a bit every 10 secs
+    private int   decayCount          = 0;     // number of times powerup has decayed (deleted on points reaching 0)
+    private int   powerUpPoints       = 5;     // score value - every power starts with 5 points
+    private int   scoreMultiplier     = 5;     // give it a better score, could increase points with levels later on?
+    private int   powerUpHealthPoints = 3;     // health points given for collecting this powerup
 
-    private float lastUpdateTime;            // time this was last updated
-    private float startTime;                 // time this first appeared on screen
-    private float decayPeriod       = 10.0f; // decays a bit every 10 secs
-    private int decayCount          = 0;     // number of times energy pill has decayed (deleted on maxDecay)
-    private int powerUpPoints       = 5;     // score value - every power up has 5 points
-    private int powerUpHealthPoints = 3;     // health points for collecting this powerup
+    private bool  hitByPlayer        = false;
 
-    private bool hitByPlayer        = false;
-
-    public TMP_Text  statusDisplayField;
-    public AudioClip powerBoing; // audio clip to play
+    public AudioClip powerBoing;               // audio clip to play on "collecting" powerup
     
     // Start is called before the first frame update
     void Start()
@@ -37,6 +40,15 @@ public class PowerUpController : MonoBehaviour
             UnityEngine.Debug.LogError("Didn't find object tagged GameController, check tag in Unity");
         }
 
+        // find player script
+        thePlayerControlScript = GameObject.Find("Player").GetComponent<PlayerController>();
+
+        if (thePlayerControlScript == null)
+        {
+            // cant find it
+            UnityEngine.Debug.Log("Can't find Player script from within Powerup controller");
+        }
+
         lastUpdateTime = Time.realtimeSinceStartup; // start time we will increment later in update()
         startTime      = lastUpdateTime;
 
@@ -44,12 +56,73 @@ public class PowerUpController : MonoBehaviour
         GetComponent<AudioSource>().playOnAwake = false;
         GetComponent<AudioSource>().clip        = powerBoing;
 
-        string blank = "";
+        /////////// Prefab Name "Glowing Powerup Container" ///////////
+        //                                                           //
+        //                   |                                       //
+        //             "Glowing Powerup" <- has this script          //
+        //             "Light"                                       //
+        //                |_> light    <-    'component' within      //
+        //             "Light 1"                                     //
+        //             "Light 2"                                     //
+        //             "Light 3"                                     //
+        //             "Light 4"                                     //
+        //             "Light 5"                                     //
+        //                                                           // 
+        ///////////////////////////////////////////////////////////////
 
-        statusDisplayField = GameObject.FindGameObjectWithTag("Status Display").GetComponent<TMP_Text>();
+        // find the Light GameObjects in the prefab (from root transform's game object down)
+        GameObject rootObject = transform.root.gameObject; // the glowing powerup container
 
-        // find bonus health field
-        statusDisplayField.text = blank.ToString();
+        theLightHolder    = new Light[5];
+        theLightComponent = new Component[5];
+
+        theLightHolder = rootObject.GetComponentsInChildren<Light>();
+        
+        // save them & then check if we should illuminate the powerup
+        // - we save them as Unity can't find inactive objects!
+        if (thePlayerControlScript)
+        {
+            // illuminate (or not) all the 'light components' inside
+            for (int i =0; i< theLightHolder.Length; i++)
+            {
+                // find the Light object from each gameObject
+                theLightComponent[i] = theLightHolder[i].GetComponentInChildren<Light>();
+            }
+
+            // now see if we need to illuminate them
+            foreach (Light current in theLightComponent)
+            {
+                // illuminate if night mode, switch off otherwise
+                if (thePlayerControlScript.IsNightMode() == true)
+                {
+                    current.intensity = 28f;                }
+                else
+                {
+                    current.intensity = 0f;
+                }
+            }
+        }
+    }
+
+    public void SetPowerupGlowing(bool bGlow)
+    {
+        // illuminate (or not) all the light gameobjects inside
+ 
+        foreach (Light current in theLightComponent)
+        {
+            // must be a light - illuminate if night mode, switch off otherwise
+            if (current != null)
+            {
+                if (thePlayerControlScript.IsNightMode() == true)
+                {
+                    current.intensity = 28f;
+                }
+                else
+                {
+                    current.intensity = 0f;
+                }
+            }
+        }
     }
 
     // Update is called once per frame
@@ -111,7 +184,27 @@ public class PowerUpController : MonoBehaviour
 
             case 5:
                 {
-                    // destroy power pill
+                    // destroy lights around it
+                    foreach (Light current in theLightHolder)
+                    {
+                        // check it's not the powerup
+                        if (!current.CompareTag("Glowing Powerup"))
+                        {
+                            Destroy(current);
+                        }
+                    }
+
+                    // destroy lights around it
+                    foreach (Light current in theLightHolder)
+                    {
+                        // check it's not the powerup
+                        if (!current.CompareTag("Glowing Powerup"))
+                        {
+                            Destroy(current);
+                        }
+                    }
+
+                    // destroy powerup
                     Destroy(gameObject);
                     break;
                 }
@@ -131,12 +224,14 @@ public class PowerUpController : MonoBehaviour
         else return false;
     }
 
-    private void OnCollisionEnter(Collision collision)
+    private bool bHitFirstTime = true; // prevent multiple collisions adding extra points
+
+    private void OnTriggerEnter(Collider other)
     {
-        // check who collided with us - if it's the player tell game manager        
+        // check who triggered this - if it's the player tell game manager        
         // to update score
-        
-        if (collision.gameObject.CompareTag("Player") && !hitByPlayer)
+
+        if (other.gameObject.CompareTag("Player") && !hitByPlayer)
         {
             // prevent random re-collisions giving more points
             hitByPlayer = true;
@@ -147,37 +242,50 @@ public class PowerUpController : MonoBehaviour
             GetComponent<AudioSource>().Play();
 
             // update score in game manager
-            theGameControllerScript.UpdatePlayerScore(powerUpPoints);
+            theGameControllerScript.UpdatePlayerScore(powerUpPoints * scoreMultiplier);
 
-            string points = powerUpPoints.ToString() + (powerUpPoints ==1 ? " Point!" : " Points!");
+            string points = (powerUpPoints * scoreMultiplier).ToString() + " POINTS SCORED! ";
+            string bonus  = "- LUCKY! BONUS HEALTH "; // bonus points awarded
+            int    bonusHealth = 0;
 
-            statusDisplayField.text = points;
-            int bonusHealth = 0;
-
-            // randomly give Player a random bonus
-            if (Random.Range(1f,20f) >= 17f)
+            if (bHitFirstTime)
             {
-                bonusHealth = Random.Range(10, 20);
-            }
+                // prevent multiple health points addition
+                // randomly give Player a random bonus
+                bHitFirstTime = false;
 
-            if (bonusHealth > 0)
-            {
-                // player got a bonus
-                string bonus = bonusHealth.ToString();
-                string blank = "You're Lucky! Bonus Health Points! " + bonus +"%";
+                if (Random.Range(1f, 20f) >= 17f)
+                {
+                    bonusHealth = Random.Range(10, 20);
+                }
+
+                if (bonusHealth > 0)
+                {
+                    // player got a bonus - add it
+                    bonus+= bonusHealth.ToString() + "%";
+                    theGameControllerScript.PostStatusMessage(points + bonus); // display it
+                }
+                else
+                {
+                    theGameControllerScript.PostStatusMessage(points); // display it
+                }
                 
-                // find bonus health field
-                statusDisplayField.text = blank.ToString();
+                // update player health by powerup health points (and any bonus)
+                theGameControllerScript.UpdatePlayerHealth(powerUpHealthPoints + bonusHealth);
             }
 
-            // update player health by remaining powerup health points and any bonus
-            theGameControllerScript.UpdatePlayerHealth(powerUpHealthPoints + bonusHealth);
-
-            bonusHealth = 0;
-
-            // disable it as we don't more collisions if we walk through it
+            // destroy lights around it
+            foreach (Light current in theLightHolder)
+            {
+                // check it's not the powerup
+                if (!current.CompareTag("Glowing Powerup"))
+                {
+                    Destroy(current);
+                }
+            }
+            
+            // now destroy powerup
             Destroy(gameObject, 0.35f);
-            hitByPlayer = false;
         }
     }
 }

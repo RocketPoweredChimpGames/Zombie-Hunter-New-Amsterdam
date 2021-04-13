@@ -5,54 +5,88 @@ TagManager:
   serializedVersion: 2
   tags:
   - Shootable
-  - Missile
-  - Enemy Drone
-  - Enemy Warrior
-  - Focus Point
-  - Power Up
+  - Light Bulb
+  - Concrete
+  - Player Head Lamp
+  - Grassy Areas
+  - Main Lighting
+  - ScorePlayer
+  - HighScoreReturn
+  - Ground
   - EnemyWaveNum
+  - Boundary Top
   - SmartBomb
   - LivesPlayer
+  - Credits Replay Panel
+  - Boundary Bottom
   - EnemiesRemaining
-  - Ground
+  - High Scores Table
   - EnemiesKilledTotal
   - Player Health
   - Panel
   - SpawnManager
-  - ScorePlayer
-  - Instructions Panel
-  - Status Display
-  - Demo Player
-  - Demo Warrior
-  - Demo Drone
-  - Bomb Flames
-  - Main Lighting
-  - Fire Flies
-  - Candles
-  - Flame Thrower
   - Flame Point
+  - Status Display
+  - Ponds
+  - High Scores Panel
+  - Enemy Drone
+  - Power Up
   - Enemy Warrior Base Object
-  - Boundary Top
-  - Boundary Bottom
-  - Player Base Object
-  - Credits Replay Panel
+  - Missile
+  - Enemy Warrior
+  - Bomb Flames
+  - Focus Point
+  - Umbrella
+  - Patio
+  - Building
+  - Stone Fence
+  - Sonamoo Tree
+  - Skyscraper
+  - Black Car
+  - Tocus
+  - Demo Player
+  - DanpungMix Tree
   - Jumok Tree
   - Newngsowha Tree
-  - DanpungMix Tree
-  - Patio
-  - Tocus
-  - Sonamoo Tree
-  - Black Car
   - Table
-  - Umbrella
+  - Demo Warrior
+  - FOCE08
+  - Fire Flies
   - Beut Tree
-  - Concrete
-  - Ponds
-  - Grassy Areas
-  - Building
-  - Skyscraper
-  - High Score
-  - Player Head Lamp
+  - Candles
+  - Flame Thrower
+  - Demo Drone
+  - Neuti Tree
+  - Instructions Panel
+  - Crosshair Target
+  - Search Spotlight
+  - Glowing Powerup
+  - Wall
+  - HQ Entry Sensor
+  - HQ Entry Spots
+  - HQ Exit Sensor
+  - Wall Lantern Flickering
+  - Powerup Container
+  - Game Exit Panel
+  - Dumpster
+  - Ground Pole
+  - Stop Sign
+  - Mailbox
+  - Fire Hydrant
+  - Shots Left
+  - Shots Reload Count
+  - Tree Stump
+  - Sky Platform Entry
+  - Sky Platform Exit
+  - Plasma Effect
+  - Smart Bomb Explosion
+  - Kiosk
+  - Clips Left
+  - Super Glowing Powerup
+  - Super Powerup Container
+  - Important Status Display
+  - Current Zone
+  - HighScoresTitle
   layers:
   - Default
   - TransparentFX

@@ -18,7 +18,6 @@ public class MissileController : MonoBehaviour
     private Rigidbody missileRb; // missile Rb
     private Vector3  realGravity;
     private float    gravityModifier = 1.0f;
-    private float    speed           = 1.0f;
 
     public AudioClip missileExplosion; // explosion sound
 
@@ -35,7 +34,11 @@ public class MissileController : MonoBehaviour
         theDroneController = GameObject.FindGameObjectWithTag("Enemy Drone");
         theGameController = GameObject.FindGameObjectWithTag("GameController");
 
-        theDroneControllerScript = theDroneController.GetComponent<DroneController>();
+        if (theDroneControllerScript)
+        {
+            theDroneControllerScript = theDroneController.GetComponent<DroneController>();
+        }
+        
         theGameControllerScript = theGameController.GetComponent<GameplayController>();
     }
 
@@ -66,26 +69,42 @@ public class MissileController : MonoBehaviour
             collision.gameObject.CompareTag("Boundary Bottom") ||
             collision.gameObject.CompareTag("Power Up") ||
             collision.gameObject.CompareTag("Enemy Warrior") ||
+            collision.gameObject.CompareTag("Beut Tree") ||
+            collision.gameObject.CompareTag("DanpungMix Tree") ||
             collision.gameObject.CompareTag("Jumok Tree") ||
             collision.gameObject.CompareTag("Newngsowha Tree") ||
-            collision.gameObject.CompareTag("DanpungMix Tree") ||
+            collision.gameObject.CompareTag("Neuti Tree") ||
+            collision.gameObject.CompareTag("Sonamoo Tree") ||
             collision.gameObject.CompareTag("Black Car") ||
+            collision.gameObject.CompareTag("Tocus") ||
+            collision.gameObject.CompareTag("FOCE08") ||
             collision.gameObject.CompareTag("Table") ||
             collision.gameObject.CompareTag("Umbrella") ||
             collision.gameObject.CompareTag("Concrete") ||
             collision.gameObject.CompareTag("Ponds") ||
             collision.gameObject.CompareTag("Grassy Areas") ||
             collision.gameObject.CompareTag("Building") ||
-            collision.gameObject.CompareTag("Skyscraper"))
+            collision.gameObject.CompareTag("Skyscraper") ||
+            collision.gameObject.CompareTag("Stone Fence") ||
+            collision.gameObject.CompareTag("Dumpster") ||
+            collision.gameObject.CompareTag("Ground Pole") ||
+            collision.gameObject.CompareTag("Stop Sign") ||
+            collision.gameObject.CompareTag("Mailbox") ||
+            collision.gameObject.CompareTag("Fire Hydrant") ||
+            collision.gameObject.CompareTag("Kiosk") ||
+            collision.gameObject.CompareTag("Patio"))
         {
-            // missile has landed (or hit end barriers/ landed on a powerup/ trees
-            // or even bounced on a zombies head), so play bomb explosion at current position
+            // missile has landed (or hit end barriers/ landed on a powerup/ trees etc,
+            // or even bounced on a zombies head - hahaha), so play bomb explosion at current position
             // and allow another bomb launch if not too far down screen
 
-            if (transform.position.z > -78)
+            if (transform.position.z > -110f)
             {
                 // ok to spawn another missile, so reset flag
-                theDroneControllerScript.missileLaunched = false;
+                if (theDroneControllerScript != null)
+                {
+                    theDroneControllerScript.missileLaunched = false;
+                }
             }
 
             // play explosion effect
@@ -100,7 +119,7 @@ public class MissileController : MonoBehaviour
             theGameControllerScript.UpdatePlayerScore(-20);
 
             // display direct hit message
-            theGameControllerScript.PostStatusMessage("Direct Bomb Hit! Lose 20 Points!");
+            theGameControllerScript.PostStatusMessage("DIRECT HIT! LOSE 20 POINTS!");
 
             // do explosion animation
             StartCoroutine(PlayingExplosion());
@@ -112,7 +131,7 @@ public class MissileController : MonoBehaviour
         // play the explosion sound and wait for it to finish
         GetComponent<AudioSource>().clip        = missileExplosion;
         GetComponent<AudioSource>().playOnAwake = true;
-        GetComponent<AudioSource>().volume      = 0.3f;
+        GetComponent<AudioSource>().volume      = 0.25f;
         GetComponent<AudioSource>().Play(); 
         
         //  play explosion particle effect
@@ -124,11 +143,11 @@ public class MissileController : MonoBehaviour
         GameObject thePlayer = theGameControllerScript.thePlayer;
 
         // Give Player damage if too close to explosion
-        if (Vector3.Distance(thePlayer.transform.position, transform.position) < 10f)
+        if (Vector3.Distance(thePlayer.transform.position, transform.position) < 15f)
         {
             // player within range to take blast wave damage
             theGameControllerScript.UpdatePlayerScore(-10);
-            theGameControllerScript.PostStatusMessage("Blast Wave Damage! Lose 10 Points!");
+            theGameControllerScript.PostStatusMessage("BLAST WAVE DAMAGE! LOSE 10 POINTS!");
         }
 
         // suspend deletiom for a bit
@@ -137,7 +156,7 @@ public class MissileController : MonoBehaviour
         //  set it dead if not destroyed already (added due to timing issues) at end of animation clip
         if (theBombFlames != null)
         {
-            Destroy(gameObject, theBombFlames.GetComponentInChildren<ParticleSystem>().duration);
+            Destroy(gameObject, theBombFlames.GetComponentInChildren<ParticleSystem>().main.duration);
         }
         else
         {
