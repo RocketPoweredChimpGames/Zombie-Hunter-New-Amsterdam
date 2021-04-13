@@ -51,6 +51,7 @@ public class GameplayController : MonoBehaviour
     public  AudioClip   lifeLostNoise;          // life lost noise
     public  AudioClip   youReallyWannaGo;       // quit game ask
     public  AudioClip   goodbye;                // quit game confirmed
+    public  AudioClip   zoneChanged;            // zone changed sound
 
     // spoken audio clips
     public AudioClip    gameOver;               // game over voice
@@ -70,7 +71,9 @@ public class GameplayController : MonoBehaviour
     public TMP_Text     ScorePlayer;            // players score
     public TMP_Text     LivesPlayer;            // players lives
     public TMP_Text     PlayerHealth;           // players health
-    public TMP_Text     StatusDisplay;          // status display messages box
+    public TMP_Text     StatusDisplay;          // 'general' status display message box
+    public TMP_Text     ImportantStatusDisplay; // 'IMPORTANT' status display message box (for Level Starts/Game Over/Super Powerup Msgs Only)
+    public TMP_Text     PlayersCurrentZone;     // players current zone
     public TMP_Text     EnemyWaveNum;           // enemy wave number
     public TMP_Text     EnemiesRemaining;       // remaining enemies this wave
     public TMP_Text     EnemiesKilledTotal;     // total enemies killed in game
@@ -89,6 +92,7 @@ public class GameplayController : MonoBehaviour
     private bool bGameReStarted     = false;  // has game been restarted
     public  bool bGamePaused        = false;  // is game on pause
     public  bool bGameOver          = false;  // is game over
+    public bool  bStartZoneUpdate   = false;  // prevent zone update till game starts or restarts
     public  bool playingCountdown   = false;  // are we playing countdown noise
     private int  enemySpeedSetting  = 2;      // set by Player to tell enemies speed to go at (0- slow, 1-medium, 2-normal)
     
@@ -99,21 +103,93 @@ public class GameplayController : MonoBehaviour
     private int  maxEnemiesPerWave     = 50;  // maximum per wave before starting next wave
 
     // player variables
-    private int  maxPowerUps       = 200;   // maximum powerups on screen at a time
-    private int  playerLives       = 3;     // number of player lives
-    public  int  playerHealth      = 100;   // initial full health
-    private int  playerScore       = 0;     // initial player score
-    private int  highScore         = 0;     // put in a file later to keep
-    public bool  playerJustDied    = false; // set to true if player just died to avoid new hits for a few seconds
+    private int  maxPowerUps         = 200;   // maximum powerups on screen at a time
+    private int  playerLives         = 3;     // number of player lives
+    public  int  playerHealth        = 100;   // initial full health
+    private int  playerScore         = 0;     // initial player score
+    private int  highScore           = 0;     // put in a file later to keep
+    private int  playersCurrentZone  = 0;     // always starts in zone 0
+    public bool  playerJustDied      = false; // set to true if player just died to avoid new hits for a few seconds
 
     // shot counters
-    private int  startingClips     = 4;     // initial number of clips (may come from a file if player can buy stuff later in dev)
-    private int  clipsLeft         = 4;     // clips remaining
-    private int  shotsInAClip      = 25;    // total shots in a clip   (may vary if player buys bigger clips later in dev)
-    private int  shotsLeftThisClip = 25;    // shots left in current clip  
-    
-    // sky box to use at start
+    private int  startingClips       = 4;     // initial number of clips (may come from a file if player can buy stuff later in dev)
+    private int  clipsLeft           = 4;     // clips remaining
+    private int  shotsInAClip        = 25;    // total shots in a clip   (may vary if player buys bigger clips later in dev)
+    private int  shotsLeftThisClip   = 25;    // shots left in current clip  
+
+    // powerup points
+    private int  superPowerupPoints  = 250;  // points for collecting a super powerup
+    //private  int superPowerupExpiry = 3;    // 3 minutes to collect the powerup
+    private int superPowerupExpiry   = 1;     // 1 minute for testing
+
+    //private int powerupPoints    = 25; // ordinary powerup - maybe used later on in dev
+
+    // sky box used at start
     public Material theDaySkybox; // daytime sky box
+
+    private void UpdatePlayerZonePosition()
+    {
+        // called every second to check players current zone for display update
+        if (thePlayer !=null && !IsGameOver() || IsGamePaused())
+        {
+            // check position
+            float currentX    = thePlayer.gameObject.transform.position.x;
+            float currentZ    = thePlayer.gameObject.transform.position.z;
+            int   currentZone = 0;
+
+            if ( (currentX >= -205f && currentX <= 205f) && (currentZ <0f && currentZ >-140f))
+            {
+                // zone 0 - no spawning here
+                currentZone = 0;
+            }
+            
+            if ((currentX >= 0f && currentX <= 205f) && (currentZ >= 0f && currentZ <=205f))
+            {
+                // zone 1 - Main church area
+                currentZone = 1;
+            }
+            
+            if ((currentX <= 0.05f && currentX >= -205f) && (currentZ >= 0.05f && currentZ <= 205f))
+            {
+                // zone 2 - Harland HQ
+                currentZone = 2;
+            }
+
+            if ((currentX >= -205f && currentX <= 205f) && (currentZ <= -140.1f && currentZ >= -220f))
+            {
+                // zone 3 - Bottom Lawn
+                currentZone = 3;
+            }
+            
+            if ((currentX >= 206f && currentX <= 650f) && (currentZ >= -260f && currentZ <= 200f))
+            {
+                // zone 4 - Sky Platform
+                currentZone = 4;
+            }
+
+            if (currentZone != playersCurrentZone)
+            {
+                // reset zone and beep
+                PlayersCurrentZone.SetText(currentZone.ToString());
+                playersCurrentZone = currentZone;
+                
+                // play beep
+                theAudioSource.clip = zoneChanged;
+                theAudioSource.volume = 100;
+                theAudioSource.Play();
+            }
+        }
+    }
+
+    public int GetSuperPowerupPoints()
+    {
+        // returns points awarded for collecting a super powerup
+        return superPowerupPoints;
+    }
+    public int GetSuperPowerupExpiryTime() 
+    {
+        return superPowerupExpiry;
+    }
 
     public int GetStartingClips()
     {
@@ -227,6 +303,13 @@ public class GameplayController : MonoBehaviour
 
             // reset clip start to 30s into main game background music clip
             thePlayer.GetComponentInChildren<Camera>().GetComponent<AudioSource>().time = 30f;
+
+            PostImportantStatusMessage("Get Ready to Hunt! Starting Level 1");
+
+            // start updating player zone position
+            bStartZoneUpdate = true;
+            PlayersCurrentZone.SetText("0".ToString()); // dirty but will do!
+
         }
     }
 
@@ -278,15 +361,26 @@ public class GameplayController : MonoBehaviour
     {
         // display game over on screen, accepts any high score entry before
         bGameOver = true;
+        bStartZoneUpdate = false;
 
         // stop the decay health co-routine from doing anything
         SetHealthCountdownPaused(true); // flag checked inside coroutine
 
         GameObject[] theWarriors    = GameObject.FindGameObjectsWithTag("Enemy Warrior Base Object");
+        GameObject[] theDrones = GameObject.FindGameObjectsWithTag("Enemy Drone");
+
         GameObject[] thePowerups    = GameObject.FindGameObjectsWithTag("Glowing Powerup");
         GameObject[] thePowerLights = GameObject.FindGameObjectsWithTag("Power Up");
         GameObject[] thePowerContainer = GameObject.FindGameObjectsWithTag("Powerup Container");
-        GameObject[] theDrones      = GameObject.FindGameObjectsWithTag("Enemy Drone");
+        
+        GameObject[] theSuperPowers = GameObject.FindGameObjectsWithTag("Super Powerup Container");
+
+
+        foreach (GameObject superPower in theSuperPowers)
+        {
+            // destroy them as game over
+            Destroy(superPower);
+        }
 
         // destroy warriors
         foreach (GameObject warrior in theWarriors)
@@ -309,9 +403,10 @@ public class GameplayController : MonoBehaviour
             Destroy(drone);
         }
 
-        string status      = "GAME OVER!";
-        StatusDisplay.text = status.ToString();
-
+        // posts end game message in the bigger status message box used solely 
+        // at start of levels /end game/ or super powerup availability
+        PostImportantStatusMessage("GAME OVER!");
+        PostStatusMessage(""); // clear other display
 
         // play game over voice
         _outputMixer = "Voice Up 10db"; // increase volume of clip 10db over max
@@ -322,8 +417,6 @@ public class GameplayController : MonoBehaviour
         // wait for voice to finish before stopping audio
         StartCoroutine("WaitForEndGameVoice");
         
-        //Time.timeScale = 0f; // stop animating
-
         // Show the highscores table
         ShowHighScores();
         
@@ -430,6 +523,7 @@ public class GameplayController : MonoBehaviour
             // start next wave
             enemyWaveNumber++;
             StartWaveNumber(enemyWaveNumber);
+            PostImportantStatusMessage("Level Completed! Starting Level " + enemyWaveNumber);
         }
         else
         {
@@ -447,8 +541,6 @@ public class GameplayController : MonoBehaviour
         // display new wave number, and initial enemies remaining
         EnemyWaveNum.SetText(enemyWaveNumber.ToString());
         EnemiesRemaining.SetText(maxEnemiesPerWave.ToString());
-        string dispString = "Starting Wave " + waveNum.ToString();
-        StatusDisplay.SetText(dispString);
     }
 
     public void SetGameDefaults()
@@ -622,6 +714,9 @@ public class GameplayController : MonoBehaviour
         SetHealthCountdownPaused(true);
         InvokeRepeating("DecayPlayerHealth", 3f, 3f);
 
+        // start zone check every second - will only do a check when game is running
+        InvokeRepeating("UpdatePlayerZonePosition", 1f, 1f);
+
         // set audio source component & mixer
         theAudioSource = GetComponent<AudioSource>();
         theMixer       = Resources.Load("Music") as AudioMixer; // from created "Resources/Music/..." folder in heirarchy
@@ -674,8 +769,10 @@ public class GameplayController : MonoBehaviour
                 // Hide highscores panel
                 theHighScoresControllerScript.ShowHighScoresPanel(false); // Do not place this after StartGame()
 
-               SetGameDefaults(); // resets all game defaults inc time & sound to normal
-               StartGame(true); // start game
+                SetGameDefaults(); // resets all game defaults inc time & sound to normal
+                StartGame(true); // start game
+               
+                PostImportantStatusMessage("Get Ready to Hunt! Starting Level 1");
 
                 if (!restartReposition)
                 {
@@ -798,19 +895,13 @@ public class GameplayController : MonoBehaviour
         if (playerHealth <=25 && playerHealth >10)
         {
             // display critical health message
-            TMP_Text statusDisp = GameObject.FindGameObjectWithTag("Status Display").GetComponent<TMP_Text>();
-            
-            string blank = "HEALTH CRITICAL!";
-
-            statusDisp.text = blank.ToString();
+            PostStatusMessage("HEALTH CRITICAL!");
         }
 
         if (playerHealth <= 10)
         {
             // imminent death state
-            string blank = "DEATH IMMINENT - GET POWERUPS NOW!";
-
-            StatusDisplay.text = blank.ToString(); // display critical message
+            PostStatusMessage("DEATH IMMINENT - GET POWERUPS NOW!");
             PlayCriticalCountdown(true); // play critical noise
         }
 
@@ -831,9 +922,8 @@ public class GameplayController : MonoBehaviour
         // play health countdown music
         if (playIt == true && !playingCountdown)
         {
-            string blank = "COLLECT POWERUPS!";
-            StatusDisplay.SetText(blank.ToString());
-
+            PostStatusMessage("COLLECT POWERUPS!");
+            
             // not playing it, so play it
             _outputMixer = "No Change"; // set to normal levels
             GetComponent<AudioSource>().outputAudioMixerGroup = theMixer.FindMatchingGroups(_outputMixer)[0];
@@ -919,11 +1009,11 @@ public class GameplayController : MonoBehaviour
         // decrease player lives, reset health to full if some left, turn off countdown noise
         playerLives += livesLost;
 
-        string blank = "YOU LOST A LIFE!";
-
-        // find bonus health field
-        //StatusDisplay.text = blank.ToString();
-        PostStatusMessage(blank);
+        if (!IsGameOver())
+        {
+            string blank = "YOU LOST A LIFE!";
+            PostStatusMessage(blank);
+        }
 
         if (playerLives <= 0)
         {
@@ -948,13 +1038,12 @@ public class GameplayController : MonoBehaviour
             // reset status display
             PlayCriticalCountdown(false); // turn off critical countdown sound
             PlayLifeLost();
-
-            
         }
  
         LivesPlayer.text = playerLives.ToString(); // update number of lives
     }
 
+    // clears message box for general messages during gameplay
     IEnumerator ClearStatusDisplay()
     {
         // waits 4 seconds without blocking before continuing execution
@@ -963,11 +1052,26 @@ public class GameplayController : MonoBehaviour
         StatusDisplay.text = dispString.ToString();
     }
 
+    // clears message box for IMPORTANT game information during gameplay
+    IEnumerator ClearImportantStatusDisplay()
+    {
+        // waits 7 seconds without blocking before continuing execution
+        yield return new WaitForSeconds(7.0f);
+        string dispString = "";
+        ImportantStatusDisplay.text = dispString.ToString();
+    }
+
     public void PostStatusMessage(string sStatusMsg)
     {
-        // post passed message
+        // post a general message
         StatusDisplay.text = sStatusMsg.ToString();
         StartCoroutine("ClearStatusDisplay"); // clear 4 secs later
+    }
+    public void PostImportantStatusMessage(string sStatusMsg)
+    {
+        // post an important message
+        ImportantStatusDisplay.text = sStatusMsg.ToString();
+        StartCoroutine("ClearImportantStatusDisplay"); // clear 6 secs later
     }
 
     public int GetPlayerHealth()

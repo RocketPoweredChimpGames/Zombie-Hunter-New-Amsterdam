@@ -758,7 +758,27 @@ public class PlayerController : MonoBehaviour
                     Debug.Log("Deleted glowing Powerup - in turn on");
                 }
             }
+            
+            // turn on SUPER glowing powerups - (these can be destroyed by Player) so allow for this
+            GameObject[] superPowerups = GameObject.FindGameObjectsWithTag("Super Glowing Powerup"); // current (at this millisecond!) ones
 
+            foreach (GameObject glowing in glowingPowerups)
+            {
+                // could have been destroyed on the C++ native side as Unity's Destroy() actually just
+                // deletes the C++ object behind it and as C# uses the CLR managed garbage collection, it just
+                // pretends it's deleted/'gone' and lets the C# garbage collector delete it when all refs are gone
+                // So, always CHECK if null first!
+
+                if (glowing != null)
+                {
+                    // set glowing light to 'on'
+                    glowing.GetComponentInChildren<PowerUpController>().SetPowerupGlowing(true);
+                }
+                else
+                {
+                    Debug.Log("Deleted glowing Powerup - in turn on");
+                }
+            }
             // Turn on Headlamp
             theHeadLamp.SetActive(true);
         }

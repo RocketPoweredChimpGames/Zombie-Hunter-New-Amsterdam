@@ -24,7 +24,6 @@ public class PowerUpController : MonoBehaviour
 
     private bool  hitByPlayer        = false;
 
-    public TMP_Text  statusDisplayField;
     public AudioClip powerBoing;               // audio clip to play on "collecting" powerup
     
     // Start is called before the first frame update
@@ -56,13 +55,6 @@ public class PowerUpController : MonoBehaviour
         // setup audio clip
         GetComponent<AudioSource>().playOnAwake = false;
         GetComponent<AudioSource>().clip        = powerBoing;
-
-        string blank = "";
-
-        statusDisplayField = GameObject.FindGameObjectWithTag("Status Display").GetComponent<TMP_Text>();
-
-        // reset field
-        statusDisplayField.text = blank.ToString();
 
         /////////// Prefab Name "Glowing Powerup Container" ///////////
         //                                                           //
@@ -202,6 +194,16 @@ public class PowerUpController : MonoBehaviour
                         }
                     }
 
+                    // destroy lights around it
+                    foreach (Light current in theLightHolder)
+                    {
+                        // check it's not the powerup
+                        if (!current.CompareTag("Glowing Powerup"))
+                        {
+                            Destroy(current);
+                        }
+                    }
+
                     // destroy powerup
                     Destroy(gameObject);
                     break;
@@ -242,11 +244,9 @@ public class PowerUpController : MonoBehaviour
             // update score in game manager
             theGameControllerScript.UpdatePlayerScore(powerUpPoints * scoreMultiplier);
 
-            //string points = powerUpPoints.ToString() + (powerUpPoints == 1 ? " POINT SCORED!" : " POINTS SCORED!");
-            string points = (powerUpPoints * scoreMultiplier).ToString() + " POINTS SCORED!";
-
-            statusDisplayField.text = points;
-            int bonusHealth = 0;
+            string points = (powerUpPoints * scoreMultiplier).ToString() + " POINTS SCORED! ";
+            string bonus  = "- LUCKY! BONUS HEALTH "; // bonus points awarded
+            int    bonusHealth = 0;
 
             if (bHitFirstTime)
             {
@@ -261,15 +261,16 @@ public class PowerUpController : MonoBehaviour
 
                 if (bonusHealth > 0)
                 {
-                    // player got a bonus
-                    string bonus = bonusHealth.ToString();
-                    string blank = "YOU'RE LUCKY! BONUS HEALTH " + bonus + "%";
-
-                    // find bonus health field
-                    statusDisplayField.text = blank.ToString();
+                    // player got a bonus - add it
+                    bonus+= bonusHealth.ToString() + "%";
+                    theGameControllerScript.PostStatusMessage(points + bonus); // display it
                 }
-
-                // update player health by remaining powerup health points and any bonus
+                else
+                {
+                    theGameControllerScript.PostStatusMessage(points); // display it
+                }
+                
+                // update player health by powerup health points (and any bonus)
                 theGameControllerScript.UpdatePlayerHealth(powerUpHealthPoints + bonusHealth);
             }
 

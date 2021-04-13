@@ -495,9 +495,13 @@ public class EnemyController : MonoBehaviour
             //Debug.Log("Zombie attacking Player!\n");
             if (!theGameControllerScript.HasPlayerJustDied())
             {
-                // ok to add damge as player hasn't recently died
-                theGameControllerScript.UpdatePlayerHealth(hitDamage);
-                theGameControllerScript.StatusDisplay.SetText("LOOK OUT! THERE'S A ZOMBIE ABOUT!");
+                // check if game over
+                if (!theGameControllerScript.IsGameOver())
+                {
+                    // ok to add damge as player hasn't recently died
+                    theGameControllerScript.UpdatePlayerHealth(hitDamage);
+                    theGameControllerScript.PostStatusMessage("WATCH OUT! THERE'S A ZOMBIE ABOUT!");
+                }
             }
             else
             {
