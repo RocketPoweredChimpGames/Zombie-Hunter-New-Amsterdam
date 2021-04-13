@@ -14,7 +14,7 @@ using UnityEngine.UI;
 public class PowerUp
 {
     // class used to store PowerUp object and creation time
-    // for use in a List<> here in gameplay controller (later dev)
+    // for use in a List<> here in gameplay controller (in later dev)
     public PowerUp( GameObject gObj, float tTime)
     {
         thePowerUp = gObj;       // the game object on screen
@@ -54,20 +54,20 @@ public class GameplayController : MonoBehaviour
     public  AudioClip   zoneChanged;            // zone changed sound
 
     // spoken audio clips
-    public AudioClip    gameOver;               // game over voice
-    public AudioClip    levelComplete;          // level completed voice
-    public AudioClip    winner;                 // winner voice
+    public AudioClip    gameOver;               // 'game over' voice
+    public AudioClip    levelComplete;          // 'level completed' voice
+    public AudioClip    winner;                 // 'winner' voice
     public AudioClip    hereWeGo;               // here we go game start voice
-    public AudioClip    loseALifeVoice;         // lose a life voice
+    public AudioClip    loseALifeVoice;         // 'lose a life' voice
     public AudioClip    thatsNotGonnaDoIt;      // not in high score or zero score voice
-    public AudioClip    the321Voice;            // gun reload countdown
+    public AudioClip    the321Voice;            // gun reload countdown at end of sequence
 
     // audio components etc
     private AudioSource theAudioSource;         // audio source component
     private AudioMixer  theMixer;               // the audio mixer to output sound from listener to
     private string      _outputMixer;           // holds mixer struct
 
-    // all these text fields are associated by dragging field entries into gameplay controller entries in gui editor
+    // all TMP text fields are associated by dragging field entries into gameplay controller entries in the Unity GUI editor
     public TMP_Text     ScorePlayer;            // players score
     public TMP_Text     LivesPlayer;            // players lives
     public TMP_Text     PlayerHealth;           // players health
@@ -89,16 +89,16 @@ public class GameplayController : MonoBehaviour
     
     // game control 
     public  bool bGameStarted       = false;  // has game started
-    private bool bGameReStarted     = false;  // has game been restarted
+    private bool bGameReStarted     = false;  // has game been restarted (after end game)
     public  bool bGamePaused        = false;  // is game on pause
-    public  bool bGameOver          = false;  // is game over
+    public  bool bGameOver          = false;  // is game over (prevent further user inputs)
     public bool  bStartZoneUpdate   = false;  // prevent zone update till game starts or restarts
     public  bool playingCountdown   = false;  // are we playing countdown noise
-    private int  enemySpeedSetting  = 2;      // set by Player to tell enemies speed to go at (0- slow, 1-medium, 2-normal)
+    private int  enemySpeedSetting  = 2;      // set by Player during game to get enemies speed to go at (0- slow, 1-medium, 2-normal)
     
     // game stats stuff
-    public int   enemyWaveNumber       = 0;   // wave number
-    private int  totalEnemiesKilled    = 0;   // total of all kills
+    public int   enemyWaveNumber       = 0;   // current wave number
+    private int  totalEnemiesKilled    = 0;   // total killed
     private int  enemiesKilledThisWave = 0;   // how many killed on current wave
     private int  maxEnemiesPerWave     = 50;  // maximum per wave before starting next wave
 
@@ -108,7 +108,8 @@ public class GameplayController : MonoBehaviour
     public  int  playerHealth        = 100;   // initial full health
     private int  playerScore         = 0;     // initial player score
     private int  highScore           = 0;     // put in a file later to keep
-    private int  playersCurrentZone  = 0;     // always starts in zone 0
+    private int  playersCurrentZone  = 0;     // starting zone (always starts in zone 0) and and also is zone when last checked
+    private int  currentZone         = 0;     // current zone player is in (at THIS check time)
     public bool  playerJustDied      = false; // set to true if player just died to avoid new hits for a few seconds
 
     // shot counters
@@ -117,12 +118,10 @@ public class GameplayController : MonoBehaviour
     private int  shotsInAClip        = 25;    // total shots in a clip   (may vary if player buys bigger clips later in dev)
     private int  shotsLeftThisClip   = 25;    // shots left in current clip  
 
-    // powerup points
-    private int  superPowerupPoints  = 250;  // points for collecting a super powerup
-    //private  int superPowerupExpiry = 3;    // 3 minutes to collect the powerup
-    private int superPowerupExpiry   = 1;     // 1 minute for testing
-
-    //private int powerupPoints    = 25; // ordinary powerup - maybe used later on in dev
+    // Super Powerup points / expiry
+    private int  superPowerupPoints   = 500;  // points for collecting a super powerup
+    //private int  superPowerupInterval = 6;    // 6 minutes to next spawn
+    private int superPowerupInterval = 3;    // 3 minutes to next spawn FOR TESTING!!!!
 
     // sky box used at start
     public Material theDaySkybox; // daytime sky box
@@ -135,33 +134,32 @@ public class GameplayController : MonoBehaviour
             // check position
             float currentX    = thePlayer.gameObject.transform.position.x;
             float currentZ    = thePlayer.gameObject.transform.position.z;
-            int   currentZone = 0;
 
-            if ( (currentX >= -205f && currentX <= 205f) && (currentZ <0f && currentZ >-140f))
+            if ( (currentX >= -210f && currentX <= 208f) && (currentZ <0f && currentZ >-140f))
             {
                 // zone 0 - no spawning here
                 currentZone = 0;
             }
             
-            if ((currentX >= 0f && currentX <= 205f) && (currentZ >= 0f && currentZ <=205f))
+            if ((currentX >= 0f && currentX <= 208f) && (currentZ >= 0f && currentZ <=210f))
             {
                 // zone 1 - Main church area
                 currentZone = 1;
             }
             
-            if ((currentX <= 0.05f && currentX >= -205f) && (currentZ >= 0.05f && currentZ <= 205f))
+            if ((currentX <= 0.1f && currentX >= -210f) && (currentZ >= 0.05f && currentZ <= 210f))
             {
                 // zone 2 - Harland HQ
                 currentZone = 2;
             }
 
-            if ((currentX >= -205f && currentX <= 205f) && (currentZ <= -140.1f && currentZ >= -220f))
+            if ((currentX >= -210f && currentX <= 205f) && (currentZ <= -140.1f && currentZ >= -210f))
             {
                 // zone 3 - Bottom Lawn
                 currentZone = 3;
             }
             
-            if ((currentX >= 206f && currentX <= 650f) && (currentZ >= -260f && currentZ <= 200f))
+            if ((currentX >= 210f && currentX <= 650f) && (currentZ >= -260f && currentZ <= 200f))
             {
                 // zone 4 - Sky Platform
                 currentZone = 4;
@@ -172,10 +170,14 @@ public class GameplayController : MonoBehaviour
                 // reset zone and beep
                 PlayersCurrentZone.SetText(currentZone.ToString());
                 playersCurrentZone = currentZone;
-                
-                // play beep
+
+                // play bing bong noise
+                _outputMixer = "No Change"; // set to normal levels
+                GetComponent<AudioSource>().outputAudioMixerGroup = theMixer.FindMatchingGroups(_outputMixer)[0];
+
                 theAudioSource.clip = zoneChanged;
-                theAudioSource.volume = 100;
+                theAudioSource.volume = 0.4f;
+                theAudioSource.time = 0f;
                 theAudioSource.Play();
             }
         }
@@ -186,9 +188,9 @@ public class GameplayController : MonoBehaviour
         // returns points awarded for collecting a super powerup
         return superPowerupPoints;
     }
-    public int GetSuperPowerupExpiryTime() 
+    public int GetSuperPowerupInterval() 
     {
-        return superPowerupExpiry;
+        return superPowerupInterval;
     }
 
     public int GetStartingClips()
@@ -304,7 +306,7 @@ public class GameplayController : MonoBehaviour
             // reset clip start to 30s into main game background music clip
             thePlayer.GetComponentInChildren<Camera>().GetComponent<AudioSource>().time = 30f;
 
-            PostImportantStatusMessage("Get Ready to Hunt! Starting Level 1");
+            PostImportantStatusMessage("GET READY TO HUNT! STARTING WAVE 1");
 
             // start updating player zone position
             bStartZoneUpdate = true;
@@ -523,7 +525,7 @@ public class GameplayController : MonoBehaviour
             // start next wave
             enemyWaveNumber++;
             StartWaveNumber(enemyWaveNumber);
-            PostImportantStatusMessage("Level Completed! Starting Level " + enemyWaveNumber);
+            PostImportantStatusMessage("LEVEL COMPLETED! STARTING WAVE " + enemyWaveNumber);
         }
         else
         {
@@ -556,7 +558,8 @@ public class GameplayController : MonoBehaviour
         playerScore           = 0;     // reset score
         playerLives           = 3;     // reset lives
         playerJustDied        = false; // reset to allow player to take damage again
-        
+        playersCurrentZone    = 0;     // reset players zone id to start zone
+        currentZone           = 0;     // reset players checked zone to start
         clipsLeft             = startingClips;  // initial number of clips
         shotsLeftThisClip     = shotsInAClip;   // initial shots in a clip
         
@@ -772,7 +775,7 @@ public class GameplayController : MonoBehaviour
                 SetGameDefaults(); // resets all game defaults inc time & sound to normal
                 StartGame(true); // start game
                
-                PostImportantStatusMessage("Get Ready to Hunt! Starting Level 1");
+                PostImportantStatusMessage("GET READY TO HUNT! STARTING WAVE 1");
 
                 if (!restartReposition)
                 {
@@ -951,6 +954,8 @@ public class GameplayController : MonoBehaviour
         if (playIt == true && !playingCountdown)
         {
             // play critical countdown noise
+            _outputMixer = "No Change"; // group to output the audio listener to
+            GetComponent<AudioSource>().outputAudioMixerGroup = theMixer.FindMatchingGroups(_outputMixer)[0];
             theAudioSource.clip = criticalCountdownNoise;
             theAudioSource.volume = 40;
             theAudioSource.time = 0f;
@@ -1029,6 +1034,7 @@ public class GameplayController : MonoBehaviour
 
             // delay new hits from current enemies
             playerJustDied = true;
+            PostImportantStatusMessage("RUN! 5 SECS BEFORE ATTACKS COUNT!");
             StartCoroutine("PreventHitsTimer");
 
             PlayerHealth.SetText(playerHealth.ToString());

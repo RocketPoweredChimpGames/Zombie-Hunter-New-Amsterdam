@@ -82,6 +82,11 @@ TagManager:
   - Smart Bomb Explosion
   - Kiosk
   - Clips Left
+  - Super Glowing Powerup
+  - Super Powerup Container
+  - Important Status Display
+  - Current Zone
+  - HighScoresTitle
   layers:
   - Default
   - TransparentFX

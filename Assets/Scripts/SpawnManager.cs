@@ -2,6 +2,7 @@
 using System.Collections.Generic;
 using System.Globalization;
 using UnityEngine;
+using UnityEngine.Audio;
 using UnityEngine.AI;
 
 
@@ -25,9 +26,9 @@ public class SpawnManager : MonoBehaviour
     
     // 5th Oct 2020 ALL TIMES BELOW allow for FOUR spawn zones now, i.e. a drone will appear every 12s in zone (1 or 2 only)
     // and other objects spawn every 12-16 seconds in each of the 4 zones
-    private float droneSpawnInterval     = 6.0f;  // spawn a drone every 6 seconds (or 12s in zone you're in now)
-    private float warriorSpawnInterval   = 4.0f;  // spawn warrior every 4 seconds until maximum (1 every 16 secs in YOUR current zone)
-    private float powerPillSpawnInterval = 3.5f;  // spawn a power up every 14 seconds (in the zone YOU are currently in)
+    private float droneSpawnInterval     = 9.0f;  // spawn a drone every 9 seconds (or 18s in zone you're in now)
+    private float warriorSpawnInterval   = 4.0f;  // spawn warrior every 16 seconds until maximum in YOUR current zone
+    private float powerPillSpawnInterval = 4.0f;  // spawn a power up every 16 seconds in your current zone
 
     // used for waves of enemies
     public int maxDronesPerSpawn       = 3;
@@ -39,29 +40,45 @@ public class SpawnManager : MonoBehaviour
 
     // used to select next spawn zone, currently only 2 zones each, but could be more (& different) later
     // so leaving these individual variables in for now!
-    private int   warriorSpawnZone = 0; // area for next enemy (zombie) spawn
-    private int   droneArea        = 0; // area for next drone spawn ( 1 or 2 currently
-    private int   powerUpSpawnZone = 0; // area for next powerup spawn
+    private int   warriorSpawnZone = 0;           // area for next enemy (zombie) spawn
+    private int   droneArea        = 0;           // area for next drone spawn ( 1 or 2 currently
+    private int   powerUpSpawnZone = 0;           // area for next powerup spawn
 
-    private float timeLastSuperPowerup;   // time the last superpowerup was spawned
-    private int   superPowerInterval = 2; // spawn one every alternate 2 mins for testing
-    private bool  superPowerupGap    = false;
+    private float timeLastSuperPowerup;           // time the last superpowerup was spawned
+    private int   superPowerInterval   = 0;       // time interval to next super powerup spawn
+    private int   superPowerExpiryTime = 2;       // time we have to collect it (mins)
 
-    // Sound stuff for Super Powerup
-    private AudioSource theAudio;
-    public  AudioClip theSuperClip;
+    // Sound stuff for Super Powerup Announcment
+    private AudioSource theAudio;                 // the audio source
+    public AudioClip    theSuperClip;             // clip to play
+    private AudioMixer  theMixer;                 // the audio mixer to output sound from listener to
+    private string      _outputMixer;             // holds mixer struct
+    
 
+    public void ResetSuperSpawnTime( float expiryCollectTime)
+    {
+        // resets time of last superpowerup spawn
+        //
+        // the time of the LAST spawn is reset by the SuperSpawnController to ensure even time spacing between
+        // spawns and greatly reduces complexity here
+        timeLastSuperPowerup = expiryCollectTime;
+    }
 
     // Start is called before the first frame update
     void Start()
     {
         // find game controller for access later
-        theGameManager = FindObjectOfType<GameplayController>();
+        theGameManager          = FindObjectOfType<GameplayController>();
         theGameControllerScript = theGameManager.GetComponent<GameplayController>();
-        theAudio = GetComponent<AudioSource>();
-        
-        thePlayer = GameObject.FindGameObjectWithTag("Player"); // the player
-        timeLastSuperPowerup = Time.realtimeSinceStartup;     // set creation time to current start time
+        superPowerInterval      = theGameControllerScript.GetSuperPowerupInterval(); // time after which we spawn another Super Powerup
+
+        // find audio components needed
+        theAudio                = GetComponent<AudioSource>();
+        theMixer                = Resources.Load("Music") as AudioMixer; // from created "Resources/Music/..." folder in heirarchy
+        _outputMixer            = ""; // holds mixer struct
+
+        thePlayer               = GameObject.FindGameObjectWithTag("Player"); // the player
+        timeLastSuperPowerup    = Time.realtimeSinceStartup;    // set creation time to current start time
     }
 
     // Update is called once per frame
@@ -73,6 +90,7 @@ public class SpawnManager : MonoBehaviour
             startedSpawning = true;
 
             // start to spawn enemies, drones and power ups at regular intervals
+            // (SpawnPowerpill also does super powerups)
             InvokeRepeating("SpawnWarrior",   1.0f, warriorSpawnInterval);
             InvokeRepeating("SpawnDrone",     1.0f, droneSpawnInterval);
             InvokeRepeating("SpawnPowerPill", 1.0f, powerPillSpawnInterval);
@@ -82,7 +100,7 @@ public class SpawnManager : MonoBehaviour
     // Start Spawning
     void SpawnWarrior()
     {
-        GameObject warriorToSpawn = Warriors[0];  // for testing only
+        GameObject warriorToSpawn = Warriors[0];  // only one warrior type for now
         
         int nWaveNumber = theGameControllerScript.GetWaveNumber(); // find out wave number
 
@@ -178,9 +196,8 @@ public class SpawnManager : MonoBehaviour
     {
         if (Random.Range(1,10) >=2)
         {
-            // don't spawn all the time
-            // Spawns Drones in the air
-            GameObject droneToSpawn = Drones[0];  // originlly for testing only - now only one type spawned
+            // don't spawn all the time, and always spawns Drones in the air
+            GameObject droneToSpawn = Drones[0];  // only one type spawned for now
 
             if (droneToSpawn != null)
             {
@@ -237,11 +254,11 @@ public class SpawnManager : MonoBehaviour
         
     }
 
-    
     void SpawnPowerPill()
     {
-        // Spawn a Powerup
-        GameObject pillToSpawn = PowerPills[0]; // Ordinary Powerup
+        // Spawn a Powerup (and regularly a Super Powerup)
+
+        GameObject pillToSpawn = PowerPills[0]; // an ordinary Powerup
         float      randomX     = 0f;            // spawn X Pos
         float      randomZ     = 0f;            // Spawn Z Pos
 
@@ -260,14 +277,14 @@ public class SpawnManager : MonoBehaviour
                 if (powerUpSpawnZone == 1)
                 {
                     // new large area in front of church
-                    randomX = Random.Range(10f, 160f);
-                    randomZ = Random.Range(0f, 175f);
+                    randomX = Random.Range(13f, 155f);
+                    randomZ = Random.Range(0f,  175f);
                 }
 
                 if (powerUpSpawnZone == 2)
                 {
                     // top left near Harland HQ / centre lake
-                    randomX = Random.Range(-40f, -160f);
+                    randomX = Random.Range(-45f, -155f);
                     randomZ = Random.Range( 15f, 200f);
                 }
 
@@ -275,14 +292,14 @@ public class SpawnManager : MonoBehaviour
                 {
                     // main zone, bottom park area
                     randomX = Random.Range(-130f, 190f);
-                    randomZ = Random.Range(-140f, -195f);
+                    randomZ = Random.Range(-143f, -195f);
                 }
 
                 if (powerUpSpawnZone == 4)
                 {
                     // sky platform - central area
                     randomX = Random.Range(450f, 570f);
-                    randomZ = Random.Range(-170f, 55f);
+                    randomZ = Random.Range(-210f,130f);
                 }
 
                 Vector3 randomSpawnPos = new Vector3(randomX, 2, randomZ);
@@ -293,35 +310,37 @@ public class SpawnManager : MonoBehaviour
                 theGameManager.SetPowerUpEntry(newPowerup, timeSpawned); // store object & time of creation in game manager
             }
 
-            // Spawn a super powerup also if time for next spawn is due (but allow it to be a little bit random
+            // Spawn a super powerup if time for next spawn (but allow it to be a little bit random
             // so not in same zones all the time (max 15 second gap, so could spawn in a different zone now (may work)
+
             float randomTime = Random.Range(0f, 0.25f);
 
             if ( (Time.realtimeSinceStartup - timeLastSuperPowerup) / 60f >= (superPowerInterval + randomTime))
             {
-                // interval has expired
-                if (superPowerupGap == false)
-                {
-                    // spawn the super powerup in current spawn zone a little away from Powerup just spawned
-                    GameObject superPowerup = Instantiate(PowerPills[1], new Vector3(randomX + 2f, 0.1f, randomZ - 2f), Quaternion.identity); // the Super Powerup Container object
-                    theGameControllerScript.PostImportantStatusMessage("Super Powerup in Zone " + powerUpSpawnZone + " , " + " 4 mins to Collect!");
-                    timeLastSuperPowerup = Time.realtimeSinceStartup;
-                    superPowerupGap = true; // prevent spawn at next interval
-                    
-                    // play beep
-                    theAudio.clip = theSuperClip;
-                    theAudio.volume = 100;
-                    theAudio.Play();
-                }
-                else
-                {
-                    // leave a gap till next spawn
-                    timeLastSuperPowerup = Time.realtimeSinceStartup; // fake it
-                    superPowerupGap = false; // allow it next time it expires
-                }
+                // Spawn the Super Powerup in current spawn zone a little bit away from Powerup just spawned
+                GameObject superPowerup = Instantiate(PowerPills[1], new Vector3(randomX + 2f, 0.1f, randomZ - 2f), Quaternion.identity); // the Super Powerup Container object
+                theGameControllerScript.PostImportantStatusMessage("SUPER POWERUP IN ZONE " + powerUpSpawnZone + ", YOU HAVE " + superPowerExpiryTime + " MINS TO COLLECT IT!");
+                timeLastSuperPowerup = Time.realtimeSinceStartup;
+
+                // play fanfare noise
+                StartCoroutine("PlaySuperPowerupFanfare");
             }
         }
     }
+    
+    IEnumerator PlaySuperPowerupFanfare()
+    {
+        // play fanfare noise
+        _outputMixer = "No Change"; // set to normal levels
+        GetComponent<AudioSource>().outputAudioMixerGroup = theMixer.FindMatchingGroups(_outputMixer)[0];
+
+        theAudio.clip   = theSuperClip;
+        theAudio.volume = 0.8f;
+        theAudio.Play();
+
+        yield return new WaitForSeconds(theSuperClip.length);
+    }
+
 
     // Returns a currently unallocated patrol location
     UnityEngine.Vector3 getPatrolLocation()

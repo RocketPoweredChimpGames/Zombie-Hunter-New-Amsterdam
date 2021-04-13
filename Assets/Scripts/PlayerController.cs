@@ -352,6 +352,11 @@ public class PlayerController : MonoBehaviour
         {
             // play breathing sound only when moving forwards or backwards
             bBreathingPlaying = true; // prevent another play until this has finished
+
+            // set volume to normal
+            _outputMixer = "No Change"; // group to output the audio listener to
+            GetComponent<AudioSource>().outputAudioMixerGroup = theMixer.FindMatchingGroups(_outputMixer)[0];
+
             theAudio.clip     = walkMovement;
             theAudio.volume   = 0.8f;
             theAudio.PlayOneShot(walkMovement,0.8f);
@@ -762,7 +767,7 @@ public class PlayerController : MonoBehaviour
             // turn on SUPER glowing powerups - (these can be destroyed by Player) so allow for this
             GameObject[] superPowerups = GameObject.FindGameObjectsWithTag("Super Glowing Powerup"); // current (at this millisecond!) ones
 
-            foreach (GameObject glowing in glowingPowerups)
+            foreach (GameObject glowing in superPowerups)
             {
                 // could have been destroyed on the C++ native side as Unity's Destroy() actually just
                 // deletes the C++ object behind it and as C# uses the CLR managed garbage collection, it just
@@ -772,13 +777,14 @@ public class PlayerController : MonoBehaviour
                 if (glowing != null)
                 {
                     // set glowing light to 'on'
-                    glowing.GetComponentInChildren<PowerUpController>().SetPowerupGlowing(true);
+                    glowing.GetComponentInChildren<SuperPowerupController>().SetPowerupGlowing(true);
                 }
                 else
                 {
                     Debug.Log("Deleted glowing Powerup - in turn on");
                 }
             }
+
             // Turn on Headlamp
             theHeadLamp.SetActive(true);
         }
@@ -825,7 +831,28 @@ public class PlayerController : MonoBehaviour
                 }
                 else
                 {
-                    Debug.Log("Deleted glowing Powerup - in turn off");
+                    Debug.Log("Can't turn off a DELETED Super glowing Powerup - in Player Controller ToggleNightMode");
+                }
+            }
+
+            // turn off SUPER glowing powerups - (these can be destroyed by Player) so allow for this
+            GameObject[] superPowerups = GameObject.FindGameObjectsWithTag("Super Glowing Powerup"); // current (at this millisecond!) ones
+
+            foreach (GameObject glowing in superPowerups)
+            {
+                // could have been destroyed on the C++ native side as Unity's Destroy() actually just
+                // deletes the C++ object behind it and as C# uses the CLR managed garbage collection, it just
+                // pretends it's deleted/'gone' and lets the C# garbage collector delete it when all refs are gone
+                // So, always CHECK if null first!
+
+                if (glowing != null)
+                {
+                    // set glowing light to 'on'
+                    glowing.GetComponentInChildren<SuperPowerupController>().SetPowerupGlowing(false);
+                }
+                else
+                {
+                    Debug.Log("Can't turn on a DELETED Super glowing Powerup - in Player Controller ToggleNightMode");
                 }
             }
 
@@ -978,13 +1005,21 @@ public class PlayerController : MonoBehaviour
     {
         yield return new WaitForSeconds(1.5f); // give a little time for any gun sounds to finish
 
-        // play reload
+        // can play reload voice now
         theAudio.enabled = true;
+        
+        _outputMixer = "Voice Up 5db"; // group to output the audio listener to
+        GetComponent<AudioSource>().outputAudioMixerGroup = theMixer.FindMatchingGroups(_outputMixer)[0];
+
         theAudio.clip    = reloadVoice;
         theAudio.volume  = .8f;
         theAudio.PlayOneShot(reloadVoice,1f);
 
-        yield return new WaitForSeconds(reloadVoice.length);
+        yield return new WaitForSeconds(reloadVoice.length); // wait for it to finish
+
+        // reset volume to normal
+        _outputMixer = "No Change"; // group to output the audio listener to
+        GetComponent<AudioSource>().outputAudioMixerGroup = theMixer.FindMatchingGroups(_outputMixer)[0];
         bReloadVoice = true; // now allow "empty air" voice to play
     }
 

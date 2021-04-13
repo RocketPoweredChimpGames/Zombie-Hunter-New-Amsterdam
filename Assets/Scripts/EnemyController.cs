@@ -402,6 +402,7 @@ public class EnemyController : MonoBehaviour
                     default: clipToPlay = longAttack;    break;
                 }
 
+                theAudioSource.enabled = true;
                 theAudioSource.PlayOneShot(clipToPlay, 1f);
 
                 yield return new WaitForSeconds(clipToPlay.length);

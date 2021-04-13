@@ -7,12 +7,13 @@ public class SuperPowerupController : MonoBehaviour
     private GameObject         theGameController;         // GameplayController object in scene
     private GameplayController theGameControllerScript;   // the script attached to this object
     private PlayerController   thePlayerControlScript;    // player script for checking night mode
+    private SpawnManager       theSpawnManagerScript;     // needed to reset time of last super powerup spawn there
     private Light[]            theLightHolder;            // array of light gameobjects with Light Components within for night mode
     private Component[]        theLightComponent;         // need these to be able to re-activate them after turning off
 
     private float              startTime;                 // time first appeared on screen
     private int                powerupPoints     = 0;     // get real value from game controller
-    private int                powerupExpiryTime = 0;     // how long before this expires (from game controller)
+    private int                powerupExpiryTime = 2;     // how long before this expires (MINUTES)
     private bool               hitByPlayer       = false; // only allow points to be received once when hit
     private bool               bHitFirstTime     = true;  // prevent multiple collisions adding extra points
 
@@ -30,7 +31,6 @@ public class SuperPowerupController : MonoBehaviour
         {
             theGameControllerScript = theGameController.GetComponent<GameplayController>(); // find the gameplay controller
             powerupPoints           = theGameControllerScript.GetSuperPowerupPoints();
-            powerupExpiryTime       = theGameControllerScript.GetSuperPowerupExpiryTime();
         }
         else
         {
@@ -45,6 +45,8 @@ public class SuperPowerupController : MonoBehaviour
             // cant find it
             UnityEngine.Debug.Log("Can't find Player script from within Super Powerup controller");
         }
+
+        theSpawnManagerScript = GameObject.FindGameObjectWithTag("SpawnManager").GetComponent<SpawnManager>();
 
         // start time needed - as will disappear after a couple of mins
         startTime = Time.realtimeSinceStartup; // start time we will increment later in update()
@@ -90,7 +92,7 @@ public class SuperPowerupController : MonoBehaviour
                 // illuminate if night mode, switch off otherwise
                 if (thePlayerControlScript.IsNightMode() == true)
                 {
-                    current.intensity = 28f;
+                    current.intensity = 400f;
                 }
                 else
                 {
@@ -100,9 +102,10 @@ public class SuperPowerupController : MonoBehaviour
         }
     }
 
+    // remove bGlow parameter at some point as not needed now!
     public void SetPowerupGlowing(bool bGlow)
     {
-        // illuminate (or not) all the light gameobjects inside
+        // illuminate (or not) all the light gameobjects inside the super powerups
 
         foreach (Light current in theLightComponent)
         {
@@ -111,7 +114,7 @@ public class SuperPowerupController : MonoBehaviour
             {
                 if (thePlayerControlScript.IsNightMode() == true)
                 {
-                    current.intensity = 28f;
+                    current.intensity = 400f;
                 }
                 else
                 {
@@ -129,36 +132,28 @@ public class SuperPowerupController : MonoBehaviour
         {
             if (!theGameControllerScript.IsGameOver())
             {
-                // check if passed expiry time (minus a bit for now)
-
-                if ((Time.realtimeSinceStartup - startTime) /60 >= 4f)
+                // check if passed expiry time (set in game controller)
+                if ((Time.realtimeSinceStartup - startTime) /60 >= powerupExpiryTime)
                 {
                     // has met/exceeded expiry time, so get rid of it
                     PowerupExpired();
-                    theGameControllerScript.PostImportantStatusMessage("Super Powerup has just Expired!");
+                    theGameControllerScript.PostImportantStatusMessage("SUPER POWERUP JUST EXPIRED!");
                 }    
             }
         }
     }
 
-
     private void PowerupExpired()
     {
-        /*// destroy lights & powerup in container
-        foreach (Light current in theLightHolder)
+        // expired - destroy the Super Powerup Container & contents & reset time in spawn manager
+        if (theSpawnManagerScript != null)
         {
-            // check it's not the powerup
-            if (!current.CompareTag("Super Powerup"))
-            {
-                Destroy(current);
-            }
-        }*/
+            Debug.Log("Resetting Spawn time in SuperPowerupController");
+            theSpawnManagerScript.ResetSuperSpawnTime(Time.realtimeSinceStartup);
+        }
 
-        // destroy the Super Powerup Container & contents?
         Destroy(transform.parent.gameObject, 0.35f);
     }
-
-    
 
     private void OnTriggerEnter(Collider other)
     {
@@ -177,17 +172,18 @@ public class SuperPowerupController : MonoBehaviour
             theGameControllerScript.UpdatePlayerScore(powerupPoints);
             theGameControllerScript.UpdatePlayerHealth(100);
 
-            string points = "WELL DONE! FULL HEALTH & " + powerupPoints.ToString() + " SUPER POWERUP POINTS! ";
+            string points = "WELL DONE! YOU GOT FULL HEALTH & " + powerupPoints.ToString() + " POINTS! ";
             
             if (bHitFirstTime)
             {
-                theGameControllerScript.PostStatusMessage(points); // display it
+                theGameControllerScript.PostImportantStatusMessage(points); // display it
             }
             
             // update player health to full
             theGameControllerScript.UpdatePlayerHealth(100);
+            theGameControllerScript.PlayCriticalCountdown(false); // may be running
 
-            // Tidy up
+            // Do tidy up - this resets spawn time in spawn controller
             PowerupExpired();
         }
     }

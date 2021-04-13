@@ -18,6 +18,7 @@ public class HighScoreTableController : MonoBehaviour
     private GameObject theGameExitPanel    = null;   // game exit control panel
 
     private GameObject theReturnString     = null;   // disable display of string due to now including a highscore table!
+    private GameObject theTitleString      = null;   // disable title string on exit
     private GameObject theGameController   = null;   // gameplay controller
 
     private Transform entryContainer;                    // container in GUI which holds high score entry templates / is used for position purposes
@@ -69,9 +70,9 @@ public class HighScoreTableController : MonoBehaviour
     // very early loading of high scores from PlayerPrefs
     private void Awake()
     {
-        // disable its display for now - side effect of orig built
-        // without high score table stuff
+        // turn off strings shouldn't display yet
         theReturnString = GameObject.FindGameObjectWithTag("HighScoreReturn");
+        theTitleString  = GameObject.FindGameObjectWithTag("HighScoresTitle");
 
         // find objects not needed to be seen yet / needed for later use
         confirmDeleteText   = GameObject.Find("Confirm Delete Text");
@@ -497,6 +498,12 @@ public class HighScoreTableController : MonoBehaviour
             theReturnString.GetComponentInChildren<TMP_Text>().enabled = showIt;
         }
 
+        if (theTitleString)
+        {
+            // hide it for now by turning off text mesh pro ui stuff
+            theTitleString.GetComponentInChildren<TMP_Text>().enabled = showIt;
+        }
+
         gameObject.SetActive(showIt);
         entryTemplate.gameObject.SetActive(showIt);
     }
@@ -648,9 +655,11 @@ public class HighScoreTableController : MonoBehaviour
             theScript.PlayCriticalCountdown(false);
         }
 
+        
         theAudioSource.clip = theInstructionPanelSong;
         theAudioSource.time = 0f;
         theAudioSource.volume = 46;
+        theAudioSource.enabled = true;
         theAudioSource.Play();
     }
 }

@@ -5,7 +5,7 @@ using UnityEngine;
 public class InstructionPanelController : MonoBehaviour
 {
     private GameObject               thePlayer               = null; // our player character
-    private Camera                   theMainCamera           = null; // main camera on player (child of player)
+    public  Camera                   theMainCamera           = null; // main camera on player (child of player) - public for audio listener access elsewhere
 
     private GameObject               thePlayerPanel          = null; // the main gameplay panel with scores/lives/health
     private GameObject               theCreditsReplayPanel   = null; // the credits / replay option panel
@@ -152,7 +152,6 @@ public class InstructionPanelController : MonoBehaviour
     {
         // disable instructions panel, credits replay panel, and high score panel
         gameObject.SetActive(false);
-
         theCreditsReplayPanel.SetActive(false);
         theHighScoreScript.ShowHighScoresPanel(false);
         
@@ -175,7 +174,8 @@ public class InstructionPanelController : MonoBehaviour
 
         // disable this panel
         gameObject.SetActive(false);
-        
+        theMainCamera.GetComponent<AudioListener>().enabled = false;
+
         // turn off player, turn on credits replay panel
         thePlayerPanel.SetActive(false);
         thePlayer.SetActive(false);
