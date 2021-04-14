@@ -161,6 +161,15 @@ public class EnemyController : MonoBehaviour
         }
     }
 
+    public void IncreaseHitsToKill()
+    {
+        // increase the number of hits it takes to kill this enemy
+        if (maxHits < theGameControllerScript.GetHitsToKillEnemy())
+        {
+            maxHits++;
+        }
+    }
+
     private void SetNavDestination()
     {
         // set destination for the nav mesh agent to be something to move to - actually set to player for testing purposes
