@@ -87,6 +87,13 @@ TagManager:
   - Important Status Display
   - Current Zone
   - HighScoresTitle
+  - Fuel Dump 0
+  - Fuel Dump 1
+  - Fuel Dump 2
+  - Fuel Dump 3
+  - Fuel Dump 4
+  - Fuel Dump 5
+  - Petrol Can
   layers:
   - Default
   - TransparentFX

@@ -32,9 +32,10 @@ public class GameplayController : MonoBehaviour
     // Public Variables
     public GameObject[] patrolPositions;        // patrol objects in scene which our warriors patrol to  - change to a list sometime?
     public GameObject[] theObstacles;           // dynamic array of obstacles (not used now) - delete later
-    public GameObject   thePlayer;              // our player
+    public GameObject   thePlayer;              // our player (set up in the GUI editor - not in program)
     public Transform    theStartPosition;       // for repositioning player on restart (if i get it working)
 
+    public GameObject   theSpawnManager;        // the spawn manager
     public GameObject   theScoringPanel;        // displays player scores, player start/re-start game
     public GameObject   theInstructionPanel;    // displayed prior to game start with instructions & animations of alien and player
     public GameObject   theCreditsReplayPanel;  // credits and replay panel at end of game
@@ -43,7 +44,7 @@ public class GameplayController : MonoBehaviour
     private GameObject  theCrosshairs;          // target for flame / aiming
 
     private HighScoreTableController   theHighScoresControllerScript; // high scores controller script
-    //private InstructionPanelController theInstructionPanelScript;     // instruction panel controller script
+    private PlayerController           thePlayerScript;               // player controller script
 
     // all noises are setup by dragging into relevant fields in the Unity editor
     public  AudioClip   countdownNoise;         // played when less than 60% (or whatever changed to) health
@@ -83,47 +84,97 @@ public class GameplayController : MonoBehaviour
     public TMP_Text     CountReload;            // dual function shots left & time to reload when expired
 
     private List<PowerUp> currentPowerups;      // current powerups on screen for grand finale destruction sequence
-    private SpawnManager theSpawnManager;       // the spawn manager
-
+    private SpawnManager theSpawnScript;        // the spawn manager script
+    
     private UnityEngine.Vector3[] originalStartPosition; // position where our 'Zombie' objects were originally spawned (not used yet)
     
-    // game control 
+    // Game control variables
     public  bool bGameStarted       = false;  // has game started
     private bool bGameReStarted     = false;  // has game been restarted (after end game)
     public  bool bGamePaused        = false;  // is game on pause
-    public  bool bGameOver          = false;  // is game over (prevent further user inputs)
+    public  bool bGameOver          = false;  // is game over (prevent further user inputs in controllers)
     public bool  bStartZoneUpdate   = false;  // prevent zone update till game starts or restarts
     public  bool playingCountdown   = false;  // are we playing countdown noise
-    private int  enemySpeedSetting  = 2;      // set by Player during game to get enemies speed to go at (0- slow, 1-medium, 2-normal)
+    private int  enemySpeedSetting  = 2;      // set by Player during game to change enemy speed (0- slow, 1-medium, 2-normal)
     
-    // game stats stuff
-    public int   enemyWaveNumber       = 0;   // current wave number
-    private int  totalEnemiesKilled    = 0;   // total killed
+    // Game stats stuff etc
+    public int   enemyWaveNumber       = 0;   // current wave (level) number
+    private int  totalEnemiesKilled    = 0;   // total of all enemies killed since game start
     private int  enemiesKilledThisWave = 0;   // how many killed on current wave
-    private int  maxEnemiesPerWave     = 50;  // maximum per wave before starting next wave
+    private int  maxEnemiesPerWave     = 50;  // maximum enemies per wave before starting next wave (can change to make harder later)
+    private int  hitsToKillEnemy       = 3;   // how many hits from a player before enemy will die
 
-    // player variables
+    // Player variables
     private int  maxPowerUps         = 200;   // maximum powerups on screen at a time
-    private int  playerLives         = 3;     // number of player lives
-    public  int  playerHealth        = 100;   // initial full health
-    private int  playerScore         = 0;     // initial player score
-    private int  highScore           = 0;     // put in a file later to keep
-    private int  playersCurrentZone  = 0;     // starting zone (always starts in zone 0) and and also is zone when last checked
-    private int  currentZone         = 0;     // current zone player is in (at THIS check time)
-    public bool  playerJustDied      = false; // set to true if player just died to avoid new hits for a few seconds
+    private int  playerLives         = 3;     // number of player lives (can increase with bonus lives)
+    // private int currentbonusLives    = 0;     // add this later maybe
+    // private int bonusLivesMax  = 2;            // add this later maybe
 
-    // shot counters
+    public  int  playerHealth         = 100;   // initial full health
+    private int  playerScore          = 0;     // initial player score
+    private int  highScore            = 0;     // retrieved from highscore table at start (from registry)
+    private int  playersCurrentZone   = 0;     // starting zone (always starts in zone 0) and and also is zone when "last checked" for zone controller
+    private int  currentZone          = 0;     // current zone player is in (at THIS check time)
+    public bool  playerJustDied       = false; // set to true if player just died to avoid new hits for a few seconds
+
+    public int   warnCollectPowerups  = 35;    // starts warning to collect powerups
+    public int   warnCriticalPowerups = 25;    // starts warning of critical health
+    public int   warnImminentDeath    = 10;    // starts warning of imminent death
+
+    // Ammunition counters
     private int  startingClips       = 4;     // initial number of clips (may come from a file if player can buy stuff later in dev)
-    private int  clipsLeft           = 4;     // clips remaining
+    private int  clipsLeft           = 4;     // fuel (ammo) clips remaining
     private int  shotsInAClip        = 25;    // total shots in a clip   (may vary if player buys bigger clips later in dev)
     private int  shotsLeftThisClip   = 25;    // shots left in current clip  
 
-    // Super Powerup points / expiry
+    // these could change if player allowed to pay (or earn points towards by watching adverts) to change these later on
+    private int   maximumClips       = 15;    // maximum clips allowed either to be carried or available at fuel dumps (total of all active or available)
+    private float ammoRefillInterval = 87f;   // ammo is respawned every 87s (avoids conflict with Super Powerup text display & sound)
+    private int   maxAmmoPerSpawn    = 3;     // how many ammo clips (refills) are allowed at any ONE spawning
+    //private int maxSmartBombsPerLife = 1;   // maximum number of smart bombs allowed per life (could sell more)
+
+    // 'Super Powerup' points / time to next one
     private int  superPowerupPoints   = 500;  // points for collecting a super powerup
     private int  superPowerupInterval = 6;    // 6 minutes to next super powerup spawn
 
-    // sky box used at start
+    // Bonus Lives
+    //private int extraLivesMax         = 2;    // maximum of five lives can be held (player starts with 3 lives) 
+
+    // Spawn Zone Info
+    private int   numSpawnZones         = 4;  // zones start at zone zero (so actually plus 1)
+
+    // sky box to be used at start of game
     public Material theDaySkybox; // daytime sky box
+
+    public int HitsToEnemyDeath()
+    {
+        // get number of hits from player before an enemy will die
+        return hitsToKillEnemy;
+    }
+
+    public int GetNumberOfSpawnZones()
+    {
+        // returns total number of spawning zones in game level
+        return numSpawnZones;
+    }
+
+    public int GetMaximumClips()
+    {
+        // maximum clips to be held at any point
+        return maximumClips;
+    }
+
+    public int GetMaxAmmoPerSpawn()
+    {
+        // maximum ammo refills allowed at any spawn time
+        return maxAmmoPerSpawn;
+    }
+
+    public float GetAmmoRefillInterval()
+    {
+        // return time for a respawn of fuel for a clip
+        return ammoRefillInterval;
+    }
 
     private void UpdatePlayerZonePosition()
     {
@@ -171,13 +222,10 @@ public class GameplayController : MonoBehaviour
                 playersCurrentZone = currentZone;
 
                 // play bing bong noise
-                _outputMixer = "No Change"; // set to normal levels
-                GetComponent<AudioSource>().outputAudioMixerGroup = theMixer.FindMatchingGroups(_outputMixer)[0];
-
                 theAudioSource.clip = zoneChanged;
-                theAudioSource.volume = 0.4f;
+                //theAudioSource.volume = 0.4f;
                 theAudioSource.time = 0f;
-                theAudioSource.Play();
+                theAudioSource.PlayOneShot(zoneChanged,0.4f);
             }
         }
     }
@@ -189,12 +237,13 @@ public class GameplayController : MonoBehaviour
     }
     public int GetSuperPowerupInterval() 
     {
+        // interval to next spawn
         return superPowerupInterval;
     }
 
     public int GetStartingClips()
     {
-        // returns start number of clips player has
+        // returns start number of clips player has to start with
         return startingClips;
     }
 
@@ -204,16 +253,32 @@ public class GameplayController : MonoBehaviour
         return clipsLeft;
     }
 
+    public void SetAmmoClipUsed()
+    {
+        // reduce remaining clips by one
+        clipsLeft--;
+    }
+
+    public void SetAmmoCollected()
+    {
+        if (clipsLeft < maximumClips)
+        {
+            clipsLeft++; // increment clips held
+            ClipsLeft.SetText(clipsLeft.ToString()); // update TM_UI textmesh display field
+            thePlayerScript.UpdateClipsDisplay(); // tell player controller we have collected some ammo
+        }
+    }
+
     public int GetShotsInMagazine()
     {
-        // returns number of shots left in current clip
+        // returns number of shots in current clip
         return shotsLeftThisClip;
     }
 
     public void ShotFired()
     {
         // reduces number in current clip by one, which will reduce number of clips as required
-        // which will then update display later on in dev
+        // which will then update display later on in dev - done in player controller at minute
     }
 
     public bool HasPlayerJustDied()
@@ -248,8 +313,8 @@ public class GameplayController : MonoBehaviour
         return bGameReStarted;
     }
 
-    // StartGame() ALWAYS starts the countdown, the Coroutine is always running (and checks this flag), 
-    // end game sets flag to stop countdown decaying health, so initial value must always be set to TRUE here!
+    // StartGame() ALWAYS starts the countdown, the Health decay Coroutine is always running (and checks this flag), 
+    // end game sets flag to stop countdown decaying health, so initially the value must always be set to TRUE!
     public bool bHealthCountdownPaused = true; // flag checked by HealthCountdown Coroutine periodically
 
     public void SetHealthCountdownPaused(bool bStart)
@@ -275,9 +340,9 @@ public class GameplayController : MonoBehaviour
             highScore = theHighScoresControllerScript.GetHighScore();
             HighScore.SetText(highScore.ToString());
 
-            // reset to initial "25" shots & reset display text
+            // reset to initial "25" shots (or whatever this changes to) & resets display text
             CountReload.SetText(shotsInAClip.ToString()); // reset shots left in clip display
-            ShotsLeftText.SetText("SHOTS".ToString()); // dual purpose field ("SHOTS" and "TIME") display
+            ShotsLeftText.SetText("SHOTS".ToString());    // dual purpose field ("SHOTS" and "TIME") display
 
             // set clips display object to initial "4"
             ClipsLeft.SetText(startingClips.ToString());
@@ -306,6 +371,7 @@ public class GameplayController : MonoBehaviour
             thePlayer.GetComponentInChildren<Camera>().GetComponent<AudioSource>().time = 30f;
 
             PostImportantStatusMessage("GET READY TO HUNT! STARTING WAVE 1");
+            PostStatusMessage(hitsToKillEnemy.ToString() + " HITS ON TARGET TO KILL AN ENEMY!");
 
             // start updating player zone position
             bStartZoneUpdate = true;
@@ -516,12 +582,16 @@ public class GameplayController : MonoBehaviour
         // update display or start next wave
         if (enemiesKilledThisWave >= maxEnemiesPerWave)
         {
-            
+
             // play level completed voice
+            _outputMixer = "Voice Up 10db"; // group to output this audio listener to
+            GetComponent<AudioSource>().outputAudioMixerGroup = theMixer.FindMatchingGroups(_outputMixer)[0];
             theAudioSource.clip = levelComplete;
             theAudioSource.PlayOneShot(theAudioSource.clip, 1f); // play it
+            
+            StartCoroutine("ResetVolumeToNormal", levelComplete); // change volume to normal again
 
-            // start next wave
+            // start the next wave
             enemyWaveNumber++;
             StartWaveNumber(enemyWaveNumber);
             PostImportantStatusMessage("LEVEL COMPLETED! STARTING WAVE " + enemyWaveNumber);
@@ -751,6 +821,39 @@ public class GameplayController : MonoBehaviour
         {
             Debug.Log("Can't find Game Exit Panel from Player Controller Awake()");
         }
+
+       
+        if (thePlayer != null)
+        {
+            // get the player controller script
+            thePlayerScript = thePlayer.GetComponent<PlayerController>();
+
+            if (thePlayerScript == null)
+            {
+                Debug.Log("Couldn't find Player controller script from within Gameplay controller Awake()");
+            }
+        }
+        else
+        {
+            Debug.Log("Player not set up in GUI in Gameplay controller Awake()");
+        }
+
+        theSpawnManager = GameObject.FindGameObjectWithTag("SpawnManager");
+
+        if (theSpawnManager != null)
+        {
+            // get the spawn controller script
+            theSpawnScript = theSpawnManager.GetComponent<SpawnManager>();
+
+            if (theSpawnScript == null)
+            {
+                Debug.Log("Couldn't find Spawn Manager controller script from within Gameplay controller Awake()");
+            }
+        }
+        else
+        {
+            Debug.Log("No SpawnManager object set up in GUI Scene - in Gameplay controller Awake()");
+        }
     }
 
     void ActivateGameExitPanel()
@@ -829,6 +932,8 @@ public class GameplayController : MonoBehaviour
         ActivateGameExitPanel();
     }
 
+    //private int  bombResetPoints = 10000; // reset smart bomb if used every 10,000 points reached
+    //private bool bombJustReset   = false; // have we just reset smart bomb availability
 
     public void UpdatePlayerScore(int scoreChange)
     {
@@ -847,6 +952,11 @@ public class GameplayController : MonoBehaviour
             string high = playerScore.ToString();
             HighScore.SetText(high.ToString());
         }
+
+        /*if ((playerScore / bombResetPoints >= 0) && !bombJustReset)
+        {
+
+        }*/
     }
 
 
@@ -867,12 +977,13 @@ public class GameplayController : MonoBehaviour
     public void UpdatePlayerHealth(int healthPoints)
     {
         // healthPoints can be negative to indicate damage from an attack, bomb damage,
-        // or positive from collecting a powerup
+        // or positive after  collecting a powerup / superpowerup
         playerHealth += healthPoints;
 
         CheckHealthState();
     }
 
+    
     public void CheckHealthState() 
     { 
         // checks and update scores, and turns off sounds as necessary
@@ -882,28 +993,30 @@ public class GameplayController : MonoBehaviour
             playerHealth = 100;
         }
 
-        if (playerHealth <= 60)
+        if (playerHealth <= warnCollectPowerups)
         {
             // play health countdown music
             PlayCountdown(true);
+            PostStatusMessage("COLLECT POWERUPS!");
         }
 
-        if (playerHealth > 60)
+        if (playerHealth > warnCollectPowerups)
         {
             // turn off countdown music
             PlayCountdown(false);
+            PlayCriticalCountdown(false);
         }
          
-        if (playerHealth <=25 && playerHealth >10)
+        if (playerHealth <=warnCriticalPowerups && playerHealth >warnImminentDeath)
         {
             // display critical health message
             PostStatusMessage("HEALTH CRITICAL!");
         }
 
-        if (playerHealth <= 10)
+        if (playerHealth <= warnImminentDeath)
         {
             // imminent death state
-            PostStatusMessage("DEATH IMMINENT - GET POWERUPS NOW!");
+            PostImportantStatusMessage("DEATH IMMINENT - COLLECT POWERUPS NOW!");
             PlayCriticalCountdown(true); // play critical noise
         }
 
@@ -932,7 +1045,7 @@ public class GameplayController : MonoBehaviour
             theAudioSource.clip = countdownNoise;
             theAudioSource.time = 125.06f;
             theAudioSource.volume = 25;
-            theAudioSource.Play();
+            theAudioSource.PlayOneShot(countdownNoise); // changed from Play()
             playingCountdown = true;
         }
 
@@ -958,7 +1071,7 @@ public class GameplayController : MonoBehaviour
             theAudioSource.clip = criticalCountdownNoise;
             theAudioSource.volume = 40;
             theAudioSource.time = 0f;
-            theAudioSource.Play();
+            theAudioSource.PlayOneShot(criticalCountdownNoise); // changed from Play() to avoid it getting cut off when interrupted
         }
         else
         {
@@ -1005,6 +1118,7 @@ public class GameplayController : MonoBehaviour
     private void LoseALife()
     {
         // player loses a life
+        PlayCriticalCountdown(false); // switch off critical countdown
         UpdatePlayerLives(-1);
     }
 
@@ -1033,7 +1147,7 @@ public class GameplayController : MonoBehaviour
 
             // delay new hits from current enemies
             playerJustDied = true;
-            PostImportantStatusMessage("RUN! 5 SECS BEFORE ATTACKS COUNT!");
+            PostImportantStatusMessage("YOU HAVE 5 SECONDS UNTIL ATTACKS COUNT!");
             StartCoroutine("PreventHitsTimer");
 
             PlayerHealth.SetText(playerHealth.ToString());
@@ -1120,12 +1234,12 @@ public class GameplayController : MonoBehaviour
     {
         // starts weapon reload sequence
         ShotsLeftText.SetText("TIME".ToString()); // set to reloading
-        CountReload.SetText("15".ToString());
-        PostStatusMessage("OUT OF FUEL - RELOADING!");
+        CountReload.SetText("10".ToString());
+        PostImportantStatusMessage("OUT OF AMMO - RELOADING!");
         StartCoroutine("WeaponReloadTimer");
     }
 
-    private int timerCountdown = 15; // reload time
+    private int timerCountdown = 10; // reload time
     private int elapsedSecs    = 0;
 
     IEnumerator WeaponReloadTimer()
@@ -1144,9 +1258,9 @@ public class GameplayController : MonoBehaviour
                 _outputMixer = "Voice Up 10db"; // group to output the audio listener to
                 GetComponent<AudioSource>().outputAudioMixerGroup = theMixer.FindMatchingGroups(_outputMixer)[0];
                 theAudioSource.clip = the321Voice;
-                theAudioSource.volume = 1f;
+                //theAudioSource.volume = 1f;
                 theAudioSource.time = 0f;
-                theAudioSource.Play();
+                theAudioSource.PlayOneShot(the321Voice,1f);
                 StartCoroutine("ResetVolumeToNormal",the321Voice);
             }
         }
@@ -1154,7 +1268,11 @@ public class GameplayController : MonoBehaviour
         // timer exceeded - tell player controller gun reloaded
         ShotsLeftText.SetText("SHOTS".ToString());    // set to available
         CountReload.SetText(shotsInAClip.ToString()); // set to initial value
-        elapsedSecs = 0; // reset counter
-        thePlayer.GetComponent<PlayerController>().SetGunAvailable(); // re available
+        elapsedSecs = 0; // reset timer counter
+        clipsLeft   = 1; // we give a bonus clip every time a reload takes place regardless
+        thePlayer.GetComponent<PlayerController>().SetGunAvailable(); // gun is nowavailable
+
+        // Allow ammo spawning again
+        theSpawnScript.SetAmmoSpawnAllowed(); // resets flags in spawn manager
     }
 }

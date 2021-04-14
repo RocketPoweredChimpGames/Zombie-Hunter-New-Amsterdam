@@ -239,7 +239,7 @@ public class PowerUpController : MonoBehaviour
             // get collider and turn off
             gameObject.GetComponent<Collider>().enabled = false;
 
-            GetComponent<AudioSource>().Play();
+            GetComponent<AudioSource>().PlayOneShot(powerBoing,0.8f);
 
             // update score in game manager
             theGameControllerScript.UpdatePlayerScore(powerUpPoints * scoreMultiplier);

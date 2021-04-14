@@ -12,55 +12,59 @@ public class SpawnManager : MonoBehaviour
     public GameObject[] Drones;           // air support
     public GameObject[] Warriors;         // ground troops
     public GameObject[] PowerPills;       // current powerup pills
+    public GameObject[] PetrolCans;       // ammo refills
 
     // not used yet
     public GameObject[] PatrolLocations;  // array of objects set as patrol spots
 
     private Time[] powerupCreationTime;   // time each was first created
-    
+
     private GameplayController theGameControllerScript;
     private GameplayController theGameManager;
     private GameObject thePlayer;
 
-    // ALL TIMES BELOW allow for two spawn zones now, i.e. a drone will appear every 12s in zone you are in
-    
-    // 5th Oct 2020 ALL TIMES BELOW allow for FOUR spawn zones now, i.e. a drone will appear every 12s in zone (1 or 2 only)
+    // The times BELOW allow for FOUR spawn zones now (for enemies & powerups), drones will appear every 12s in zones 1 or 2 only
     // and other objects spawn every 12-16 seconds in each of the 4 zones
     private float droneSpawnInterval     = 9.0f;  // spawn a drone every 9 seconds (or 18s in zone you're in now)
-    private float warriorSpawnInterval   = 4.0f;  // spawn warrior every 16 seconds until maximum in YOUR current zone
-    private float powerPillSpawnInterval = 4.0f;  // spawn a power up every 16 seconds in your current zone
+    private float warriorSpawnInterval   = 4.0f;  // spawn warrior every 16 seconds (until maximum reached) in YOUR current zone
+    private float powerPillSpawnInterval = 4.0f;  // spawn a powerup up every 16 seconds in your current zone
 
     // used for waves of enemies
-    public int maxDronesPerSpawn       = 3;
-    public int maxWarriorsPerSpawn     = 3;
-    public int maxWarriorsOnScreen     = 60;
-    public int currentWarriorsPerSpawn = 1;       // starts at one, increases with wave numbers to max of maxPerSpawn
-    public int nSpawnAreas             = 4;       // number of spawn zones on this level
-    public bool startedSpawning        = false;   // have we started spawning
+    public int maxDronesPerSpawn       = 3;      // flying drones
+    public int maxWarriorsPerSpawn     = 3;      // maximum generated at each spawn
+    public int maxWarriorsOnScreen     = 60;     // max on screen
+    public int currentWarriorsPerSpawn = 1;      // starts at one, increases with wave numbers to max of maxPerSpawn
+    public int nSpawnAreas             = 4;      // number of spawn zones on this level
+    public bool startedSpawning        = false;  // have we started spawning yet
 
-    // used to select next spawn zone, currently only 2 zones each, but could be more (& different) later
-    // so leaving these individual variables in for now!
-    private int   warriorSpawnZone = 0;           // area for next enemy (zombie) spawn
-    private int   droneArea        = 0;           // area for next drone spawn ( 1 or 2 currently
-    private int   powerUpSpawnZone = 0;           // area for next powerup spawn
+    // used to select next spawn zone
+    private int warriorSpawnZone       = 0;     // area for next enemy (zombie) spawn
+    private int droneArea              = 0;     // area for next drone spawn (zone 1 or 2)
+    private int powerUpSpawnZone       = 0;     // area for next powerup spawn
 
-    private float timeLastSuperPowerup;           // time the last superpowerup was spawned
-    private int   superPowerInterval   = 0;       // time interval to next super powerup spawn
-    private int   superPowerExpiryTime = 2;       // time we have to collect it (mins)
+    private float ammoRefillInterval   = 0f;    // this is set by the game controller NOT this value here!
+    private float timeLastSuperPowerup = 0f;    // time the last superpowerup was spawned
+    private int   superPowerInterval   = 0;     // time interval to next super powerup spawn
+    private int   superPowerExpiryTime = 2;     // time in minutes we have to collect it
+    private int   maximumClips         = 0;     // total of ALL clips allowed (either HELD by Player or Spawned and not yet collected) at ANY time
 
-    // Sound stuff for Super Powerup Announcment
-    private AudioSource theAudio;                 // the audio source
-    public AudioClip    theSuperClip;             // clip to play
-    private AudioMixer  theMixer;                 // the audio mixer to output sound from listener to
-    private string      _outputMixer;             // holds mixer struct
-    
+    private bool bSpawnAmmoAllowed     = true;  // are we allowed to spawn ammo (set FALSE when maxAmmo held/spawned are in scene)
+    private bool bFirstTimeMessage     = true;  // only display "no more ammo" message once spawn empty cycle, set false once shown
+    private int  spawnedSoFar          = 0;     // number spawned (we only spawn upto max allowed MINUS clips held MINUS already spawned & not collected)
 
-    public void ResetSuperSpawnTime( float expiryCollectTime)
+    // Sound stuff for Announcments
+    private AudioSource theAudio;               // the audio source
+    public AudioClip    theSuperClip;           // clip to play
+    public AudioClip    messageClip;            // message audio (should move this to important status message routine)
+    private AudioMixer  theMixer;               // the audio mixer to output sound from listener to
+    private string      _outputMixer;           // holds mixer struct
+
+    public void ResetSuperSpawnTime(float expiryCollectTime)
     {
-        // resets time of last superpowerup spawn
+        // reset time of last superpowerup spawn
         //
         // the time of the LAST spawn is reset by the SuperSpawnController to ensure even time spacing between
-        // spawns and greatly reduces complexity here
+        // spawns and greatly reduces complexity here (resets it on collisionenter() and expiry)
         timeLastSuperPowerup = expiryCollectTime;
     }
 
@@ -68,17 +72,21 @@ public class SpawnManager : MonoBehaviour
     void Start()
     {
         // find game controller for access later
-        theGameManager          = FindObjectOfType<GameplayController>();
+        theGameManager = FindObjectOfType<GameplayController>();
         theGameControllerScript = theGameManager.GetComponent<GameplayController>();
-        superPowerInterval      = theGameControllerScript.GetSuperPowerupInterval(); // time after which we spawn another Super Powerup
+        superPowerInterval = theGameControllerScript.GetSuperPowerupInterval(); // time after which we spawn another Super Powerup
+
+        ammoRefillInterval = theGameControllerScript.GetAmmoRefillInterval();   // get time after which we spawn (or not) more ammo in scene
+        maximumClips = theGameControllerScript.GetMaximumClips();         // TOTAL of all clips (held or can be spawned) ALLOWED in the scene
 
         // find audio components needed
-        theAudio                = GetComponent<AudioSource>();
-        theMixer                = Resources.Load("Music") as AudioMixer; // from created "Resources/Music/..." folder in heirarchy
-        _outputMixer            = ""; // holds mixer struct
+        theAudio     = GetComponent<AudioSource>();
+        theMixer     = Resources.Load("Music") as AudioMixer; // from created "Resources/Music/..." folder in heirarchy
+        _outputMixer = ""; // holds mixer struct
 
-        thePlayer               = GameObject.FindGameObjectWithTag("Player"); // the player
-        timeLastSuperPowerup    = Time.realtimeSinceStartup;    // set creation time to current start time
+        thePlayer    = GameObject.FindGameObjectWithTag("Player"); // the player character
+        timeLastSuperPowerup = Time.realtimeSinceStartup;          // set creation time to current start time
+        spawnedSoFar = theGameControllerScript.GetStartingClips(); // always include the starting ones held by Player
     }
 
     // Update is called once per frame
@@ -90,10 +98,13 @@ public class SpawnManager : MonoBehaviour
             startedSpawning = true;
 
             // start to spawn enemies, drones and power ups at regular intervals
-            // (SpawnPowerpill also does super powerups)
-            InvokeRepeating("SpawnWarrior",   1.0f, warriorSpawnInterval);
-            InvokeRepeating("SpawnDrone",     1.0f, droneSpawnInterval);
+            // (SpawnPowerpill also does super powerups) & ammo refills
+            InvokeRepeating("SpawnWarrior", 1.0f, warriorSpawnInterval);
+            InvokeRepeating("SpawnDrone", 1.0f, droneSpawnInterval);
             InvokeRepeating("SpawnPowerPill", 1.0f, powerPillSpawnInterval);
+            InvokeRepeating("SpawnAmmoRefill", ammoRefillInterval, ammoRefillInterval); // starting spawn in "refill interval" seconds from now, then repeat at refill interval
+            
+            //TESTING   InvokeRepeating("SpawnAmmoRefill", 5f, 30f); // in 30s start spawning and then every refill interval
         }
     }
 
@@ -101,7 +112,7 @@ public class SpawnManager : MonoBehaviour
     void SpawnWarrior()
     {
         GameObject warriorToSpawn = Warriors[0];  // only one warrior type for now
-        
+
         int nWaveNumber = theGameControllerScript.GetWaveNumber(); // find out wave number
 
         if (warriorToSpawn != null)
@@ -110,18 +121,18 @@ public class SpawnManager : MonoBehaviour
             int nToSpawnNow = nWaveNumber;
 
             //Debug.Log("Spawning " + nToSpawnNow + " zombies PER spawn function call on level " + nWaveNumber + ".");
-            
+
             switch (nWaveNumber)
             {
-                case 1:  { nToSpawnNow =1; break;}
-                case 2:  { nToSpawnNow =2; break;}
-                case 3:  { nToSpawnNow =3; break;}
-                case 4:  { nToSpawnNow =4; break;}
-                case 5:  { nToSpawnNow =5; break;}
-                default: { nToSpawnNow =5; break;}
+                case 1: { nToSpawnNow = 1; break; }
+                case 2: { nToSpawnNow = 2; break; }
+                case 3: { nToSpawnNow = 3; break; }
+                case 4: { nToSpawnNow = 4; break; }
+                case 5: { nToSpawnNow = 5; break; }
+                default: { nToSpawnNow = 5; break; }
             }
 
-            int maxPerWave                 = theGameControllerScript.GetMaxEnemiesPerWave();
+            int maxPerWave = theGameControllerScript.GetMaxEnemiesPerWave();
             int numberOfEnemiesOnScreenNow = GameObject.FindGameObjectsWithTag("Enemy Warrior Base Object").Length;
 
             warriorSpawnZone++; // increment zone
@@ -136,7 +147,7 @@ public class SpawnManager : MonoBehaviour
             // maxEnemiesPerWave = 50; // maximum per wave before starting next wave
 
             // check if spawning these would go over the maximum allowed number of enemies on screen
-            if (numberOfEnemiesOnScreenNow <= (maxPerWave - nToSpawnNow)) 
+            if (numberOfEnemiesOnScreenNow <= (maxPerWave - nToSpawnNow))
             {
                 for (int iSpawn = 0; iSpawn < nToSpawnNow; iSpawn++)
                 {
@@ -159,7 +170,7 @@ public class SpawnManager : MonoBehaviour
                             {
                                 // top left near HQ building / left side of central lake 
                                 randomX = Random.Range(-175f, -145f);
-                                randomZ = Random.Range(-150f, 190f);
+                                randomZ = Random.Range(-150f,  150f);
                                 break;
                             }
 
@@ -183,7 +194,7 @@ public class SpawnManager : MonoBehaviour
                     }
 
                     // spawn it
-                    Vector3    randomSpawnPos = new Vector3(randomX, warriorToSpawn.transform.position.y, randomZ);
+                    Vector3 randomSpawnPos = new Vector3(randomX, warriorToSpawn.transform.position.y, randomZ);
                     GameObject newWarrior;
 
                     newWarrior = Instantiate(warriorToSpawn, randomSpawnPos, Quaternion.identity);
@@ -194,7 +205,7 @@ public class SpawnManager : MonoBehaviour
 
     void SpawnDrone()
     {
-        if (Random.Range(1,10) >=2)
+        if (Random.Range(1, 10) >= 2)
         {
             // don't spawn all the time, and always spawns Drones in the air
             GameObject droneToSpawn = Drones[0];  // only one type spawned for now
@@ -251,7 +262,7 @@ public class SpawnManager : MonoBehaviour
                 }
             }
         }
-        
+
     }
 
     void SpawnPowerPill()
@@ -259,8 +270,8 @@ public class SpawnManager : MonoBehaviour
         // Spawn a Powerup (and regularly a Super Powerup)
 
         GameObject pillToSpawn = PowerPills[0]; // an ordinary Powerup
-        float      randomX     = 0f;            // spawn X Pos
-        float      randomZ     = 0f;            // Spawn Z Pos
+        float randomX = 0f;            // spawn X Pos
+        float randomZ = 0f;            // Spawn Z Pos
 
         if (pillToSpawn != null)
         {
@@ -278,14 +289,14 @@ public class SpawnManager : MonoBehaviour
                 {
                     // new large area in front of church
                     randomX = Random.Range(13f, 155f);
-                    randomZ = Random.Range(0f,  175f);
+                    randomZ = Random.Range(0f, 175f);
                 }
 
                 if (powerUpSpawnZone == 2)
                 {
                     // top left near Harland HQ / centre lake
-                    randomX = Random.Range(-45f, -155f);
-                    randomZ = Random.Range( 15f, 200f);
+                    randomX = Random.Range(-100f, -155f);
+                    randomZ = Random.Range(  15f,  160f);
                 }
 
                 if (powerUpSpawnZone == 3)
@@ -299,12 +310,12 @@ public class SpawnManager : MonoBehaviour
                 {
                     // sky platform - central area
                     randomX = Random.Range(450f, 570f);
-                    randomZ = Random.Range(-210f,130f);
+                    randomZ = Random.Range(-210f, 130f);
                 }
 
                 Vector3 randomSpawnPos = new Vector3(randomX, 2, randomZ);
                 GameObject newPowerup;
-                float      timeSpawned = Time.realtimeSinceStartup;
+                float timeSpawned = Time.realtimeSinceStartup;
 
                 newPowerup = Instantiate(pillToSpawn, randomSpawnPos, Quaternion.identity); // spawn it
                 theGameManager.SetPowerUpEntry(newPowerup, timeSpawned); // store object & time of creation in game manager
@@ -315,7 +326,7 @@ public class SpawnManager : MonoBehaviour
 
             float randomTime = Random.Range(0f, 0.25f);
 
-            if ( (Time.realtimeSinceStartup - timeLastSuperPowerup) / 60f >= (superPowerInterval + randomTime) && !theGameControllerScript.IsGamePaused())
+            if ((Time.realtimeSinceStartup - timeLastSuperPowerup) / 60f >= (superPowerInterval + randomTime) && !theGameControllerScript.IsGamePaused())
             {
                 // Spawn the Super Powerup in current spawn zone a little bit away from Powerup just spawned
                 GameObject superPowerup = Instantiate(PowerPills[1], new Vector3(randomX + 2f, 0.1f, randomZ - 2f), Quaternion.identity); // the Super Powerup Container object
@@ -327,14 +338,14 @@ public class SpawnManager : MonoBehaviour
             }
         }
     }
-    
+
     IEnumerator PlaySuperPowerupFanfare()
     {
         // play fanfare noise
         _outputMixer = "No Change"; // set to normal levels
         GetComponent<AudioSource>().outputAudioMixerGroup = theMixer.FindMatchingGroups(_outputMixer)[0];
 
-        theAudio.clip   = theSuperClip;
+        theAudio.clip = theSuperClip;
         theAudio.volume = 0.8f;
         theAudio.Play();
 
@@ -347,6 +358,107 @@ public class SpawnManager : MonoBehaviour
     {
         // search patrol array to find a free one
         return new Vector3(0f, 0f, 0f); // test
+    }
+
+    public void SetAmmoSpawnAllowed()
+    {
+        // allow spawning of ammo to continue
+        bSpawnAmmoAllowed = true; // ok to spawn
+        bFirstTimeMessage = true; // display msg next time empty
+        spawnedSoFar      = 1;    // one clip is spawned just after clip reload sequence
+    }
+
+    void SpawnAmmoRefill()
+    {
+        // Spawn an Ammo clip refill in the "FUEL" dump zone found in each zone (1-4 for now -not zero)
+        if (bSpawnAmmoAllowed)
+        {
+            // Spawn a refill if not on pause
+            if (!theGameControllerScript.IsGamePaused())
+            {
+                int currentClips  = theGameControllerScript.GetNumberOfClipsLeft(); // how many clips player currently holds
+                int maxClips      = theGameControllerScript.GetMaximumClips();      // maximum number of clips that can be carried
+                int possibleClips = maxClips - currentClips;                        // max we could potentially spawn this time
+                int spawnZone     = Random.Range(0, theGameControllerScript.GetNumberOfSpawnZones()); // random spawn zone
+
+                if (spawnedSoFar < maxClips)
+                {
+                    // we haven't yet spawned (or currently hold) the maximum allowed
+                    
+                    int toSpawn  = Random.Range(1, theGameControllerScript.GetMaxAmmoPerSpawn());
+                   
+                    // allow smaller spawn if near limit
+                    if (toSpawn + spawnedSoFar > maxClips && spawnedSoFar < maxClips)
+                    {
+                        toSpawn = maxClips - spawnedSoFar;
+                    }
+
+                    if (toSpawn + spawnedSoFar <= maxClips)
+                    {
+                        // ok to spawn these, spawn the Ammo (Petrol Can(s)) in the "Fuel Zone" circle
+                        // find the selected zone & its transform 
+                        string zoneString = "Fuel Dump " + spawnZone.ToString();
+
+                        GameObject dumpZone = GameObject.FindGameObjectWithTag(zoneString);
+                        GameObject newFuel;
+                        Vector3    spawnPos = dumpZone.transform.position;
+                       
+                        Debug.Log("Spawning " + toSpawn.ToString() + (toSpawn == 1 ? " refill" : " refills") + " in zone " + spawnZone + " at " + (Time.realtimeSinceStartup % 60) + " minutes(s) from startup.");
+
+                        // position at centre of Fuel dump zone, and randomise a little to prevent (hopefully) new ones appearing on top
+                        // if player doesn't collect them (Zone Width is approx 0.8 units in GUI), ammo has a rigidbody, so should just
+                        // bump out of the way on screen (may fall on floor) if they do collide
+
+                        for (int i=0; i < toSpawn; i++)
+                        {
+                            GameObject ammoRefill = PetrolCans[0]; // ammo "Petrol Can" object - may be more types later
+                            float spawnX = spawnPos.x + ammoRefill.GetComponent<Renderer>().bounds.center.x + Random.Range(-3.5f, 3.5f);
+                            float spawnY = 0f;
+                            float spawnZ = spawnPos.z + ammoRefill.GetComponent<Renderer>().bounds.center.z + Random.Range(-3.5f, 3.5f);
+
+                            // spawn it now
+                            newFuel    = Instantiate(ammoRefill, new Vector3(spawnX, 0f, spawnZ), Quaternion.identity);
+                        }
+
+                        spawnedSoFar += toSpawn; // increment count
+
+                        // play fanfare noise
+                        StartCoroutine("PlayAmmoFanfare", toSpawn.ToString() + " x AMMO REFILL AVAILABLE IN ZONE " + spawnZone);
+                    }
+                    
+                    if (spawnedSoFar >= maxClips)
+                    {
+                        // turn off spawning now as we have reached maximum - only reenable when we are empty of clips
+                        bSpawnAmmoAllowed = false;
+
+                        if (bFirstTimeMessage)
+                        {
+                         //   theGameControllerScript.PostImportantStatusMessage("NO MORE AMMO SPAWNED UNTIL ALL CURRENT IS USED!");
+                            bFirstTimeMessage = false;
+
+                            // play fanfare noise
+                            StartCoroutine("PlayAmmoFanfare", "NO MORE AMMO NOW, UNTIL ALL HELD IS USED!");
+                        }
+                    }
+                }
+            }
+        }
+    }
+
+    IEnumerator PlayAmmoFanfare(string theMessage)
+    {
+        // play fanfare noise
+        _outputMixer = "No Change"; // set to normal levels
+        GetComponent<AudioSource>().outputAudioMixerGroup = theMixer.FindMatchingGroups(_outputMixer)[0];
+
+        theAudio.clip = messageClip;
+        theAudio.volume = 0.8f;
+        theAudio.Play();
+
+        yield return new WaitForSeconds(messageClip.length);
+
+        // post an important message
+        theGameControllerScript.PostImportantStatusMessage(theMessage);
     }
 }
 

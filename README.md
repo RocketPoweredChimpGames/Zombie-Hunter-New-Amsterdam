@@ -12,11 +12,13 @@
 #       "4 Industrial barrels"                              V 1.0 - by Vertex Field
 #       "AllSky Free - 10 Sky / Skybox Set"                 V 1.0 - by RPG Whitelock
 #       "Awesome Game UI pack 9"                            V 1.0 - by RR Studio
+#       "Billboard"                                         V 1.0 - by Mariam Sarishvili
 #       "Chicken Piece Free"                                V 1.0 - by Devden
 #       "Church 3D"                                         V 1.0 - by Andrei CG
 #       "Construction Vehicles"                             V 1.1 - by Poly Grunt
 #       "Croissants Pack"                                   V 1.0 - by Optimesh
 #       "Fountain Prop"                                     V 1.0 - by Thunderent
+#       "Free Little Games Assdet Pack"                     V 1.0 - by Ferocious Industries
 #       "French Fries"                                      First - by Devden
 #       "Gaz Street Props"                                  V 1.1 - by Helsssoo
 #       "Grass Flowers Pack Free"                           V 1.0 - by ALP8310  
@@ -29,8 +31,10 @@
 #       "Low Poly Street Pack"                              V 1.0 - by Dynamic Art
 #       "Modern Touring Car Pack"                           V 1.0 - by Marcelo Barrio
 #       "Modular Medieval Lanterns"                         V 1.0 - Alexandr Veodov"
+#       "Old Soviet Shop"                                   V 1.0 - by Nikolay Fedorov
 #       "Parking Meter"                                     V 1   - by Ozgur
 #       "PBR Ground Materials #1 [Dirt & Grass]"            V 1.0 - by John's Junkyard Assets
+#       "PBR Pizza"                                         V 1.0 - by Maksim Bugrimov
 #       "Police Car & Helicopter"                           V 1.1 - by SICS Games 
 #       "Satellite Dish"                                    V 1.03- by Duane's Mind
 #       "SciFi Enemies and Vehicles"                        V 1.0 - by Popup Asylum
