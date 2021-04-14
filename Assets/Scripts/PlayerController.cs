@@ -74,10 +74,6 @@ public class PlayerController : MonoBehaviour
     private float smartBombRange       = 60f;   // destruction range for the smart bomb
     private bool  bBreathingPlaying    = false; // have we started playing audio (on forward/back movement)
 
-    // game boundaries (left in, not used now)
-    //private int boundaryZ = 208; // top & bottom (+-) boundaries on Z axis from centre (0,0,0)
-    //private int boundaryX = 208; // left & right (+-) boundaries on X axis from centre (0,0,0)
-
     // night mode toggle
     public bool bNightModeOn = false;
 
@@ -393,7 +389,7 @@ public class PlayerController : MonoBehaviour
             // toggle pause game
             if (Input.GetKeyDown(KeyCode.P))
             {
-                if (theGameControllerScript.IsGamePaused() == true)
+                if (theGameControllerScript.IsGamePaused())
                 {
                     // resume game
                     theGameControllerScript.PauseGame(false);
@@ -457,35 +453,6 @@ public class PlayerController : MonoBehaviour
                 //playerVelocity.y += gravityValue * Time.deltaTime;
                 //controller.Move(playerVelocity * Time.deltaTime);
 
-                /* // check boundaries for player movement
-                if (horizontalInput != 0 || verticalInput != 0)
-                {
-                    // REMOVED THIS BIT as adding a Transport Terminal outside the right boundary of the game!
-                    // keep player within playfield
-                    if (transform.position.z > boundaryZ)
-                    {
-                        Vector3 reposTransform = new Vector3(transform.position.x, 0f, boundaryZ - 0.75f);
-                        transform.position = reposTransform;
-                    }
-                    else 
-                    
-                    if (transform.position.z < -boundaryZ)
-                    {
-                        Vector3 reposTransform = new Vector3(transform.position.x, 0f, -(boundaryZ - 0.75f));
-                        transform.position = reposTransform;
-                    }
-                    else if (transform.position.x > boundaryX)
-                    {
-                        Vector3 reposTransform = new Vector3(boundaryX - 0.75f, 0f, transform.position.z);
-                        transform.position = reposTransform;
-                    }
-                    else if (transform.position.x < -boundaryX)
-                    {
-                        Vector3 reposTransform = new Vector3(-(boundaryX - 0.75f), 0f, transform.position.z);
-                        transform.position = reposTransform;
-                    }
-                }*/
-
                 // change animation state to correct one dependent on movement direction
                 // can ONLY be one state at a time as no move forward/left, back/left, forward/right, backward/right animations
                 // in the package I found, also has some delays in starting due to transitions baked in, grrr!
@@ -531,7 +498,7 @@ public class PlayerController : MonoBehaviour
                     else
                     {
                         // set animation moving backwards
-                        // need to add on only do it if finished
+                        // need to add on only do it if finished as this doesn't work properly at present
                         theAnimator.SetBool("b_moveForward", false);
                         theAnimator.SetBool("b_moveLeft", false);
                         theAnimator.SetFloat("f_Speed", 0f);
@@ -570,6 +537,7 @@ public class PlayerController : MonoBehaviour
                             GetComponent<AudioSource>().outputAudioMixerGroup = theMixer.FindMatchingGroups(_outputMixer)[0];
                             theAudio.clip = emptyGunNoise;
                             theAudio.PlayOneShot(emptyGunNoise, 0.7f);
+                            theGameControllerScript.PostStatusMessage("GUN IS STILL LOADING!");
 
                             // reset volume to normal
                             StartCoroutine(theGameControllerScript.ResetVolumeToNormal(emptyGunNoise));
@@ -638,6 +606,9 @@ public class PlayerController : MonoBehaviour
         }
     }
 
+    public bool bStillInsideHQ = false; // flag set when we enter the 'Harland Towers' building grounds
+
+
     // detect triggers set up which can be activated by the player
     private void OnTriggerEnter(Collider other)
     {
@@ -647,12 +618,8 @@ public class PlayerController : MonoBehaviour
             // turn on the spotlighting at the HQ building
             Debug.Log("Entered HQ Zone!");
             ActivateHQEntrySpots(true);
+            bStillInsideHQ = true; // flag we are still inside as can switch to Day mode inside HQ zone!
         }
-       /* else if (other.gameObject.CompareTag("Sky Platform Flame On") && IsNightMode())
-        {
-            // turn on the sky platform exhaust effect as we can see it now
-            Debug.Log("Entered Sky Platform Exhaust Visible Zone!");
-        }*/
     }
 
     // detect triggers set up which can be de-activated by the player
@@ -664,6 +631,7 @@ public class PlayerController : MonoBehaviour
             // turn off the spotlighting at the HQ building
             Debug.Log("Leaving HQ Zone!");
             ActivateHQEntrySpots(false);
+            bStillInsideHQ = false;
         }
     }
 
@@ -706,8 +674,8 @@ public class PlayerController : MonoBehaviour
                 // set intensity to dark
                 theLight.intensity = 0f;
 
-                UnityEngine.RenderSettings.ambientIntensity    = 0.2f; // Will make it dark
-                UnityEngine.RenderSettings.reflectionIntensity = 0.2f; // will make it dark
+                UnityEngine.RenderSettings.ambientIntensity    = 0.2f; // Will make it dark (adjust as necessary for best effect)
+                UnityEngine.RenderSettings.reflectionIntensity = 0.2f; // will make it dark ( 0f to 1f)
             }
             
             // turn on searchlights
@@ -729,7 +697,7 @@ public class PlayerController : MonoBehaviour
                 aCandle.GetComponentInChildren<ParticleSystem>().Play();
             }
 
-            // turn on flickering lanterns
+            // turn on flickering lanterns on houses
             foreach (GameObject lantern in theFlickeryLanterns)
             {
                 lantern.SetActive(true);
@@ -783,6 +751,12 @@ public class PlayerController : MonoBehaviour
                 {
                     Debug.Log("Deleted glowing Powerup - in turn on");
                 }
+            }
+
+            // turn on HQ building lighting if still inside zone
+            if (bStillInsideHQ)
+            {
+                ActivateHQEntrySpots(true);
             }
 
             // Turn on Headlamp
@@ -927,14 +901,13 @@ public class PlayerController : MonoBehaviour
             int nEnemies = enemies.Length;
             int nKilled = 0;
 
-            //foreach (GameObject enemy in enemies)
             for (int n=0; n <nEnemies; n++)
             {
-                // destroy only the ones within range of the smart bomb, calling dyingstate() allows a short delay for sound
+                // destroy only the ones within range of the smart bomb, calling DyingState() allows a short delay for sound
                 // and animations to finish playing before destroying them
                 if (enemies[n] != null)
                 {
-                    // get the warrior inside it from the scripts gameObject!
+                    // get the 'warrior' inside it from the scripts gameObject!
                     if (Vector3.Distance(transform.position, enemies[n].GetComponentInChildren<EnemyController>().gameObject.transform.position) <= smartBombRange)
                     {
                         enemies[n].GetComponentInChildren<EnemyController>().DyingState();
@@ -944,25 +917,21 @@ public class PlayerController : MonoBehaviour
                         {
                             // gives max points to the player (for each enemy) for killing them, if game isn't over, should really be 
                             // max points minus hit points per object but hey run out of time to do stuff!
-                            //theGameControllerScript.UpdatePlayerScore(pointsPerEnemyHitShot * maxPointsPerEnemy); // give max points for each enemy destroyed
                             theGameControllerScript.UpdatePlayerScore(maxPointsPerEnemy); // give max points for each enemy destroyed
                         }
                     }
                 }
             }
-
-            //Debug.Log("Number toasted with smart bomb = " + nKilled);
         }
         else
         {
-            // play beep - used noise
+            // play smart bomb used noise
             theAudio.enabled = true;
             _outputMixer = "No Change"; // group to output the audio listener to
             GetComponent<AudioSource>().outputAudioMixerGroup = theMixer.FindMatchingGroups(_outputMixer)[0];
 
             theAudio.clip = smartBombUsed;
             theAudio.PlayOneShot(smartBombUsed, 1f);
-
         }
     }
 
@@ -975,6 +944,7 @@ public class PlayerController : MonoBehaviour
             smartBombButton.interactable = true;
             smartBombButton.GetComponentInChildren<Text>().text = "SMART BOMB";
         }
+
         // make bomb available again
         smartBombAvailable = true;
     }
@@ -985,12 +955,13 @@ public class PlayerController : MonoBehaviour
         bGunAvailable        = true;       // reset gun available flag
         bWeaponReloadStarted = false;      // reset gun reload timer flag
         shotsFired           = 0;          // reset shots fired
-        clipsLeft            = startClips; // reset to starting clips again
-        UpdateClipsDisplay();
-        UpdateShotsDisplay();
+        
+        clipsLeft = theGameControllerScript.GetNumberOfClipsLeft(); // get number of clips player has (1)        
+        UpdateClipsDisplay(); // will always have 1 clip available after a reload before any is newly collected
+        UpdateShotsDisplay(); // will now reset to starting value as shots fired is zero
 
         // post display message
-        theGameControllerScript.PostStatusMessage("WEAPON AVAILABLE!"); // clears after 4 secs
+        theGameControllerScript.PostImportantStatusMessage("WEAPON NOW AVAILABLE!"); // clears after 6/7 secs
     }
 
     IEnumerator PlayGunReloaded()
@@ -1009,7 +980,7 @@ public class PlayerController : MonoBehaviour
         GetComponent<AudioSource>().outputAudioMixerGroup = theMixer.FindMatchingGroups(_outputMixer)[0];
 
         theAudio.clip    = reloadVoice;
-        theAudio.volume  = .8f;
+        theAudio.volume  = .9f;
         theAudio.PlayOneShot(reloadVoice,1f);
 
         yield return new WaitForSeconds(reloadVoice.length); // wait for it to finish
@@ -1031,10 +1002,10 @@ public class PlayerController : MonoBehaviour
         }
     }
 
-    private void UpdateClipsDisplay()
+    public void UpdateClipsDisplay()
     {
-        // added 7/10/2020 - function here for now to update clips display stuff in gameplay controller
-        // will be moved into game manager and a function called here instead later on
+        // update clips display - check with gameplay controller as we may have collected some
+        clipsLeft = theGameControllerScript.GetNumberOfClipsLeft(); // get new number of clips as we have collected stuff
         theGameControllerScript.ClipsLeft.SetText(clipsLeft.ToString());
     }
 
@@ -1043,9 +1014,9 @@ public class PlayerController : MonoBehaviour
         shotsFired++; // increment shots fired
 
         // show message nearly empty
-        if ((maxShotsInMagazine - shotsFired <= 5) && clipsLeft == 0)
+        if ((maxShotsInMagazine - shotsFired <= 10) && clipsLeft == 0)
         {
-            theGameControllerScript.PostStatusMessage("WEAPON NEARLY EMPTY!");
+            theGameControllerScript.PostImportantStatusMessage("WEAPON NEARLY EMPTY!");
         }
 
         // check if we have already exceeded magazine contents before allowing shot
@@ -1053,7 +1024,8 @@ public class PlayerController : MonoBehaviour
         {
             if (clipsLeft >= 1)
             {
-                clipsLeft--; // reduce clips by one
+                clipsLeft--; // reduce clips by one   - check if this is correct now!!!!!
+                theGameControllerScript.SetAmmoClipUsed(); // reduce by one in game controller
                 shotsFired = 0;
             }
             else if (!bWeaponReloadStarted)

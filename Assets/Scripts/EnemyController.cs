@@ -57,7 +57,7 @@ public class EnemyController : MonoBehaviour
     private int   minEnergy              = 15;     // minimum energy level before must search for a power up or may die (15%)
     public  int   hitDamage              = -1;     // damage per hit from zombie
     private int   hitCount               = 0;      // how many times has this enemy been hit by player gun
-    private int   maxHits                = 5;      // max number of times hit before dying
+    private int   maxHits                = 3;      // max number of times hit before dying
     private bool  dyingPlaying           = false;  // is dying voice playing
 
     // Playfield Boundaries (change these if ever resizing play area)
@@ -82,6 +82,11 @@ public class EnemyController : MonoBehaviour
         startPosition             = gameObject.transform;          // our starting position (always returns here after a patrol) (unused for now)
         theDestination            = thePlayer;                     // destination for enemy object - set to player position
 
+        if (theGameControllerScript != null)
+        {
+            maxHits= theGameControllerScript.HitsToEnemyDeath(); // get number of player hits before enemy dies from game controller
+        }
+        
         // set a random position for initial patrol, use later, set to player for now!
         // currentDestination = theSpawnManagerScript.getPatrolLocation();
 
@@ -571,7 +576,7 @@ public class EnemyController : MonoBehaviour
         AudioSource theSource = GetComponent<AudioSource>();
         theSource.playOnAwake = true;
         theSource.clip = dyingScreech;
-        theSource.Play();
+        theSource.PlayOneShot(dyingScreech,1f);
 
         // remove our entry in array of gameobjects being separated apart (to prevent character clipping elsewhere)
         //this.GetComponent<EnemySeparation>().RemoveDestroyedEnemy(gameObject);
