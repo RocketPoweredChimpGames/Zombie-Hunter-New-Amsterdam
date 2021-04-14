@@ -11,6 +11,7 @@ using UnityEngine.Audio;
 using UnityEngine.Analytics;
 using UnityEngine.UI;
 
+// Powerup class not used yet as Enemies don't search for energy at moment
 public class PowerUp
 {
     // class used to store PowerUp object and creation time
@@ -27,6 +28,7 @@ public class PowerUp
     public bool currentlySought { get; set; }
 }
 
+// Main game controller
 public class GameplayController : MonoBehaviour
 {
     // Public Variables
@@ -47,21 +49,22 @@ public class GameplayController : MonoBehaviour
     private PlayerController           thePlayerScript;               // player controller script
 
     // all noises are setup by dragging into relevant fields in the Unity editor
-    public  AudioClip   countdownNoise;         // played when less than 60% (or whatever changed to) health
+    public  AudioClip   countdownNoise;         // played when less than 35% (or whatever changed to) health
     public  AudioClip   criticalCountdownNoise; // played when 10% or under health 
     public  AudioClip   lifeLostNoise;          // life lost noise
-    public  AudioClip   youReallyWannaGo;       // quit game ask
-    public  AudioClip   goodbye;                // quit game confirmed
+    public  AudioClip   youReallyWannaGo;       // quit game ask voice
+    public  AudioClip   goodbye;                // quit game confirmed voice
     public  AudioClip   zoneChanged;            // zone changed sound
+    public  AudioClip   nextMessageVoice;       // click used to notify of next Important message
 
     // spoken audio clips
     public AudioClip    gameOver;               // 'game over' voice
     public AudioClip    levelComplete;          // 'level completed' voice
     public AudioClip    winner;                 // 'winner' voice
-    public AudioClip    hereWeGo;               // here we go game start voice
+    public AudioClip    hereWeGo;               // 'here we go' game start voice
     public AudioClip    loseALifeVoice;         // 'lose a life' voice
-    public AudioClip    thatsNotGonnaDoIt;      // not in high score or zero score voice
-    public AudioClip    the321Voice;            // gun reload countdown at end of sequence
+    public AudioClip    thatsNotGonnaDoIt;      // not going in high score table, or zero score voice
+    public AudioClip    the321Voice;            // for end of gun reload countdown
 
     // audio components etc
     private AudioSource theAudioSource;         // audio source component
@@ -91,60 +94,111 @@ public class GameplayController : MonoBehaviour
     // Game control variables
     public  bool bGameStarted       = false;  // has game started
     private bool bGameReStarted     = false;  // has game been restarted (after end game)
-    public  bool bGamePaused        = false;  // is game on pause
-    public  bool bGameOver          = false;  // is game over (prevent further user inputs in controllers)
-    public bool  bStartZoneUpdate   = false;  // prevent zone update till game starts or restarts
-    public  bool playingCountdown   = false;  // are we playing countdown noise
+    private bool bGamePaused        = false;  // is game on pause
+    private bool bGameOver          = false;  // is game over (prevent further user inputs in controllers)
+    private bool bStartZoneUpdate   = false;  // prevent zone update till game starts or restarts
+    private bool playingCountdown   = false;  // are we playing countdown noise
     private int  enemySpeedSetting  = 2;      // set by Player during game to change enemy speed (0- slow, 1-medium, 2-normal)
-    
+    private bool bHealthCountdownPaused = true; // flag checked by HealthCountdown Coroutine periodically
+
     // Game stats stuff etc
-    public int   enemyWaveNumber       = 0;   // current wave (level) number
+    private int  enemyWaveNumber       = 0;   // current wave (level) number
     private int  totalEnemiesKilled    = 0;   // total of all enemies killed since game start
     private int  enemiesKilledThisWave = 0;   // how many killed on current wave
-    private int  maxEnemiesPerWave     = 50;  // maximum enemies per wave before starting next wave (can change to make harder later)
-    private int  hitsToKillEnemy       = 3;   // how many hits from a player before enemy will die
+    private int  currentZombiesPerWave = 30;  // starting number per wave
+    private int  maxEnemiesPerWave     = 60;  // maximum enemies per wave before starting next wave (can change to make harder later)
+    private int  incrementZombies      = 5;   // how many increases by per wave
+    private int  startHitsToKill       = 3;   // starting number of hits before an enemy is killed
+    private int  hitsToKillEnemy       = 0;   // how many hits from a player before enemy will die (set in start() - dummy value here)
+    private int  maxHitsToKillEnemy    = 6;   // maximum hits to kill an enemy (ever)
 
     // Player variables
-    private int  maxPowerUps         = 200;   // maximum powerups on screen at a time
-    private int  playerLives         = 3;     // number of player lives (can increase with bonus lives)
-    // private int currentbonusLives    = 0;     // add this later maybe
-    // private int bonusLivesMax  = 2;            // add this later maybe
+    private int  playerLives           = 3;     // number of player lives (can increase with bonus lives)
+    private int  playerHealth          = 100;   // initial full health
+    private int  playerScore           = 0;     // initial player score
+    private int  highScore             = 0;     // retrieved from highscore table at start (from registry)
+    private int  playersCurrentZone    = 0;     // starting zone (always starts in zone 0) and and also is zone when "last checked" for zone controller
+    private int  currentZone           = 0;     // current zone player is in (at THIS check time)
+    private bool playerJustDied        = false; // set to true if player just died to avoid new hits for a few seconds
 
-    public  int  playerHealth         = 100;   // initial full health
-    private int  playerScore          = 0;     // initial player score
-    private int  highScore            = 0;     // retrieved from highscore table at start (from registry)
-    private int  playersCurrentZone   = 0;     // starting zone (always starts in zone 0) and and also is zone when "last checked" for zone controller
-    private int  currentZone          = 0;     // current zone player is in (at THIS check time)
-    public bool  playerJustDied       = false; // set to true if player just died to avoid new hits for a few seconds
+    // Health warning levels
+    private int  warnCollectPowerups   = 35;    // starts warning to collect powerups
+    private int  warnCriticalPowerups  = 25;    // starts warning of critical health
+    private int  warnImminentDeath     = 10;    // starts warning of imminent death
 
-    public int   warnCollectPowerups  = 35;    // starts warning to collect powerups
-    public int   warnCriticalPowerups = 25;    // starts warning of critical health
-    public int   warnImminentDeath    = 10;    // starts warning of imminent death
-
-    // Ammunition counters
-    private int  startingClips       = 4;     // initial number of clips (may come from a file if player can buy stuff later in dev)
-    private int  clipsLeft           = 4;     // fuel (ammo) clips remaining
-    private int  shotsInAClip        = 25;    // total shots in a clip   (may vary if player buys bigger clips later in dev)
-    private int  shotsLeftThisClip   = 25;    // shots left in current clip  
-
+    // Ammunition counters & allowances
+    private int  startingClips         = 4;     // initial number of clips (may come from a file if player can buy stuff later in dev)
+    private int  clipsLeft             = 4;     // fuel (ammo) clips remaining
+    private int  shotsInAClip          = 25;    // total shots in a clip   (may vary if player buys bigger clips later in dev)
+    private int  shotsLeftThisClip     = 25;    // shots left in current clip  (not used yet - just subtracts shotsfired from this total at minute)
+    
     // these could change if player allowed to pay (or earn points towards by watching adverts) to change these later on
-    private int   maximumClips       = 15;    // maximum clips allowed either to be carried or available at fuel dumps (total of all active or available)
-    private float ammoRefillInterval = 87f;   // ammo is respawned every 87s (avoids conflict with Super Powerup text display & sound)
-    private int   maxAmmoPerSpawn    = 3;     // how many ammo clips (refills) are allowed at any ONE spawning
-    //private int maxSmartBombsPerLife = 1;   // maximum number of smart bombs allowed per life (could sell more)
+    private int   maximumClips         = 15;    // maximum clips allowed either to be carried or available at fuel dumps (total of all active or available)
+    private float ammoRefillInterval   = 87f;   // ammo is respawned every 87s (avoids conflict with Super Powerup text display & sound)
+    private int   maxAmmoPerSpawn      = 3;     // how many ammo clips (refills) are allowed at any ONE spawning
 
-    // 'Super Powerup' points / time to next one
-    private int  superPowerupPoints   = 500;  // points for collecting a super powerup
-    private int  superPowerupInterval = 6;    // 6 minutes to next super powerup spawn
+    // smart bomb awarding
+    private int   smartBombsMax        = 5;     // maximum number of smart bombs allowed (could sell more)
+    private int   currentSmartBombs    = 1;     // start off with 1 smartbomb
+    private int   smartBombsAwarded    = 0;     // count of number awarded so far
+  
+    private int   smartBombPoints      = 5000;  // gain a smart bomb every 5k points (but not more than maxSmartBombs)
+    private int   nextBombScoreCheck   = 5000;  // ALWAYS SET to same as smartBombPoints to start with, this checkpoint increments during play     
+    
+    // 'Super Powerup' Points / time to next one etc
+    private int  superPowerupPoints    = 500;   // points for collecting a super powerup
+    
+    private int  superPowerupInterval  = 6;     // 6 minutes to next super powerup spawn
+    //private int superPowerupInterval = 1;     // 6 minutes to next super powerup spawn   TEST TEST TEST!!!!!
 
-    // Bonus Lives
-    //private int extraLivesMax         = 2;    // maximum of five lives can be held (player starts with 3 lives) 
+    //private int  maxPowerUps           = 200;   // maximum powerups on screen at a time (not used yet)
 
+    // Bonus Lives Awarding
+    private int  extraLivesMax         = 2;     // maximum of five lives can be held (player starts with 3 lives) in any full game
+    private int  extraLivesPoints      = 7500;  // get another life every 7.5k points
+    private int  nextLifeScoreCheck    = 7500;  // ALWAYS SET to same as extraLivesPoints to start with, as this checkpoint increments during play     
+    private int  extraLivesAwarded     = 0;     // number of extra lives awarded so far
+    
     // Spawn Zone Info
-    private int   numSpawnZones         = 4;  // zones start at zone zero (so actually plus 1)
+    private int   numSpawnZones         = 4;    // zones start at zone zero (so actually plus 1)
+    
+    // 'Important Message' Display Variables
+    private List<string>ImportantMessageList;   // our list of displayed 'Important' messages
+    private float       impMsgMaxTime   = 7f;   // max time an important message is displayed
+    private float       impMsgMaxDelay  = 2f;   // maximum we delay a message before next message (+1sec as called by InvokeRepeating every 1s)
+    private float       timeLastImpMsg  = 0f;   // time last message (if any) was posted
 
-    // sky box to be used at start of game
+    // Sky box to be used at start of game
     public Material theDaySkybox; // daytime sky box
+
+    public int GetHitsToKillEnemy()
+    {
+        // used by others to find out how many hits (currently) before an enemy dies
+        return hitsToKillEnemy;
+    }
+
+    public void SmartBombUsed()
+    {
+        // smart bomb just ued by player
+        currentSmartBombs--;
+    }
+
+    public int GetCurrentSmartBombs()
+    {
+        // returns number of smart bombs held
+        return currentSmartBombs;
+    }
+
+    public bool MoreSmartBombsAvailable()
+    {
+        if (smartBombsAwarded < smartBombsMax - 1)
+        {
+            return true;
+        }
+
+        // no more available
+        return false;
+    }
 
     public int HitsToEnemyDeath()
     {
@@ -222,9 +276,6 @@ public class GameplayController : MonoBehaviour
                 playersCurrentZone = currentZone;
 
                 // play bing bong noise
-                theAudioSource.clip = zoneChanged;
-                //theAudioSource.volume = 0.4f;
-                theAudioSource.time = 0f;
                 theAudioSource.PlayOneShot(zoneChanged,0.4f);
             }
         }
@@ -315,8 +366,6 @@ public class GameplayController : MonoBehaviour
 
     // StartGame() ALWAYS starts the countdown, the Health decay Coroutine is always running (and checks this flag), 
     // end game sets flag to stop countdown decaying health, so initially the value must always be set to TRUE!
-    public bool bHealthCountdownPaused = true; // flag checked by HealthCountdown Coroutine periodically
-
     public void SetHealthCountdownPaused(bool bStart)
     {
         // flag checked by health decay coroutine every few seconds
@@ -350,13 +399,16 @@ public class GameplayController : MonoBehaviour
             // starts (or restarts) routine which periodically decays health (every 3s)
             if (IsHealthCountdownPaused())
             {
-                // countdown currently paused (must always be paused at 1st start/ and at restart situation), so enable it again
+                // countdown currently paused (must ***ALWAYS*** be paused at 1st start/ and at restart situation), so enable it again
                 SetHealthCountdownPaused(false);
                 thePlayer.GetComponent<PlayerController>().SetAnotherPanelInControl(false);
             }
 
             // play 'here we go' game start voice
             AudioListener.pause  = false; // re-enable audio (disabled at end of a previous game)
+
+            // stop any previously running reset coroutine
+            StopCoroutine("ResetVolumeToNormal");
 
             // increase clip vol by 5db
             _outputMixer  = "Voice Up 5db"; // group to output the audio listener to
@@ -369,14 +421,25 @@ public class GameplayController : MonoBehaviour
 
             // reset clip start to 30s into main game background music clip
             thePlayer.GetComponentInChildren<Camera>().GetComponent<AudioSource>().time = 30f;
+            
+            PostImportantStatusMessage("   "); // need this entry when initial list to start it correctly (bug fix for now!)
+            PostImportantStatusMessage("HAPPY HUNTING! STARTING WAVE 1");
+            PostStatusMessage(hitsToKillEnemy.ToString() + " HITS TO KILL AN ENEMY!");
 
-            PostImportantStatusMessage("GET READY TO HUNT! STARTING WAVE 1");
-            PostStatusMessage(hitsToKillEnemy.ToString() + " HITS ON TARGET TO KILL AN ENEMY!");
+            /*PostImportantStatusMessage("TEST MESSAGE 1");
+            PostImportantStatusMessage("TEST MESSAGE 2");
+            PostImportantStatusMessage("TEST MESSAGE 3");
+            PostImportantStatusMessage("TEST MESSAGE 4");
+            PostImportantStatusMessage("TEST MESSAGE 5");
+            PostImportantStatusMessage("TEST MESSAGE 6");
+            PostImportantStatusMessage("TEST MESSAGE 7");
+            PostImportantStatusMessage("TEST MESSAGE 8");
+            PostImportantStatusMessage("TEST MESSAGE 9");
+            PostImportantStatusMessage("TEST MESSAGE 10");*/
 
-            // start updating player zone position
+            // start updating player zone position 
             bStartZoneUpdate = true;
-            PlayersCurrentZone.SetText("0".ToString()); // dirty but will do!
-
+            PlayersCurrentZone.SetText("0".ToString()); // set initial zone display (Zone 0)
         }
     }
 
@@ -405,7 +468,7 @@ public class GameplayController : MonoBehaviour
             // Pause Game
             AudioListener.pause = true;
 
-            string messageText = "Game Paused!";
+            string messageText = "GAME PAUSED!";
             StatusDisplay.text = messageText.ToString();
             Time.timeScale = 0;
             SetHealthCountdownPaused(true);
@@ -433,15 +496,13 @@ public class GameplayController : MonoBehaviour
         // stop the decay health co-routine from doing anything
         SetHealthCountdownPaused(true); // flag checked inside coroutine
 
-        GameObject[] theWarriors    = GameObject.FindGameObjectsWithTag("Enemy Warrior Base Object");
-        GameObject[] theDrones = GameObject.FindGameObjectsWithTag("Enemy Drone");
-
-        GameObject[] thePowerups    = GameObject.FindGameObjectsWithTag("Glowing Powerup");
-        GameObject[] thePowerLights = GameObject.FindGameObjectsWithTag("Power Up");
+        GameObject[] theWarriors       = GameObject.FindGameObjectsWithTag("Enemy Warrior Base Object");
+        GameObject[] theDrones         = GameObject.FindGameObjectsWithTag("Enemy Drone");
+        GameObject[] thePowerups       = GameObject.FindGameObjectsWithTag("Glowing Powerup");
+        GameObject[] thePowerLights    = GameObject.FindGameObjectsWithTag("Power Up");
         GameObject[] thePowerContainer = GameObject.FindGameObjectsWithTag("Powerup Container");
-        
-        GameObject[] theSuperPowers = GameObject.FindGameObjectsWithTag("Super Powerup Container");
-
+        GameObject[] theSuperPowers    = GameObject.FindGameObjectsWithTag("Super Powerup Container");
+        GameObject[] theAmmo           = GameObject.FindGameObjectsWithTag("Petrol Can");
 
         foreach (GameObject superPower in theSuperPowers)
         {
@@ -470,10 +531,18 @@ public class GameplayController : MonoBehaviour
             Destroy(drone);
         }
 
-        // posts end game message in the bigger status message box used solely 
-        // at start of levels /end game/ or super powerup availability
-        PostImportantStatusMessage("GAME OVER!");
-        PostStatusMessage(""); // clear other display
+        // destroy any ammo left
+        foreach (GameObject ammo in theAmmo)
+        {
+            // destroy them as game over
+            if (ammo != null)
+            {
+                Destroy(ammo);
+            }
+        }
+
+        // not an important message as game now not running so wouldn't display
+        ImportantStatusDisplay.SetText("GAME OVER!".ToString());
 
         // play game over voice
         _outputMixer = "Voice Up 10db"; // increase volume of clip 10db over max
@@ -557,7 +626,7 @@ public class GameplayController : MonoBehaviour
 
     public bool IsGameOver()
     {
-        return bGameOver;
+        return bGameOver; // return game over flag
     }
 
     // get enemy wave number
@@ -580,11 +649,10 @@ public class GameplayController : MonoBehaviour
         enemiesKilledThisWave++;
 
         // update display or start next wave
-        if (enemiesKilledThisWave >= maxEnemiesPerWave)
+        if (enemiesKilledThisWave >= currentZombiesPerWave)
         {
-
-            // play level completed voice
-            _outputMixer = "Voice Up 10db"; // group to output this audio listener to
+            // level completed, play level completed voice
+            _outputMixer = "Voice Up 5db"; // group to output this audio listener to
             GetComponent<AudioSource>().outputAudioMixerGroup = theMixer.FindMatchingGroups(_outputMixer)[0];
             theAudioSource.clip = levelComplete;
             theAudioSource.PlayOneShot(theAudioSource.clip, 1f); // play it
@@ -592,65 +660,112 @@ public class GameplayController : MonoBehaviour
             StartCoroutine("ResetVolumeToNormal", levelComplete); // change volume to normal again
 
             // start the next wave
-            enemyWaveNumber++;
+            enemyWaveNumber++; // increment wave number
             StartWaveNumber(enemyWaveNumber);
-            PostImportantStatusMessage("LEVEL COMPLETED! STARTING WAVE " + enemyWaveNumber);
         }
         else
         {
-            // update enemies killed & remaining
-            EnemiesRemaining.SetText((maxEnemiesPerWave - enemiesKilledThisWave).ToString());
-            EnemiesKilledTotal.SetText(totalEnemiesKilled.ToString());
+            // update enemies remaining
+            EnemiesRemaining.SetText((currentZombiesPerWave - enemiesKilledThisWave).ToString());
+        }
+
+        EnemiesKilledTotal.SetText(totalEnemiesKilled.ToString()); // update enemies killed
+    }
+
+    private void ResetHitsToKillEnemy()
+    {
+        // find all enemies in play, and increase their resilience to hits
+        // as we have now started a new level
+        GameObject[] theEnemies = GameObject.FindGameObjectsWithTag("Enemy Warrior Base Object");
+
+        foreach (GameObject enemy in theEnemies)
+        {
+            // increase maximum hits allowed before they die
+            if (enemy != null)
+            {
+                enemy.GetComponentInChildren<EnemyController>().IncreaseHitsToKill();
+            }
         }
     }
 
     public void StartWaveNumber( int waveNum)
     {
+        enemiesKilledThisWave = 0; // reset for new wave
 
-        enemiesKilledThisWave = 0;
+        // don't exceed maximum hits to kill
+        if (hitsToKillEnemy < maxHitsToKillEnemy)
+        {
+            hitsToKillEnemy++;         // increment as started a new wave
+            ResetHitsToKillEnemy(); // reset to new number of hits to kill for any existing enemies on screen
+        }
+        
+        currentZombiesPerWave += incrementZombies; // increase to new number of zombies for next level
+
+        // give player wave info
+        PostImportantStatusMessage("  "); // bodge for now
+        PostImportantStatusMessage("LEVEL COMPLETED! STARTING WAVE " + waveNum + "\nKILL " +
+                                    currentZombiesPerWave.ToString() + " ZOMBIES, " +
+                                    hitsToKillEnemy.ToString() + " HITS TO KILL EACH!");
+        
+        Debug.Log(hitsToKillEnemy.ToString() + " HITS TO KILL ENEMIES ON WAVE " + waveNum.ToString());
+
+        // update enemies remaining
+        EnemiesRemaining.SetText((currentZombiesPerWave - enemiesKilledThisWave).ToString());
+
+        // don't allow it to exceed maximum allowed
+        if (currentZombiesPerWave >= maxEnemiesPerWave)
+        {
+            currentZombiesPerWave = maxEnemiesPerWave;
+        }
 
         // display new wave number, and initial enemies remaining
         EnemyWaveNum.SetText(enemyWaveNumber.ToString());
-        EnemiesRemaining.SetText(maxEnemiesPerWave.ToString());
+        EnemiesRemaining.SetText(currentZombiesPerWave.ToString());
     }
 
     public void SetGameDefaults()
     {
-        // Set score/wave and other variables, resets day box, etc.
-        enemyWaveNumber       = 1;     // set to initial wave
-        totalEnemiesKilled    = 0;     // no enemies killed
-        enemiesKilledThisWave = 0;     // nothing killed this wave
-        bGameStarted          = true;  // allows Player controller to call StartGame again
-        bGameOver             = false; // allow player controller inputs again
-        bGamePaused           = false; // game not paused
-        playerHealth          = 100;   // reset health
-        playerScore           = 0;     // reset score
-        playerLives           = 3;     // reset lives
-        playerJustDied        = false; // reset to allow player to take damage again
-        playersCurrentZone    = 0;     // reset players zone id to start zone
-        currentZone           = 0;     // reset players checked zone to start
-        clipsLeft             = startingClips;  // initial number of clips
-        shotsLeftThisClip     = shotsInAClip;   // initial shots in a clip
-        
+        // Reset all player/score/wave and any other variables, resets day box
+
+        enemyWaveNumber       = 1;                 // set to initial wave
+        totalEnemiesKilled    = 0;                 // no enemies killed
+        enemiesKilledThisWave = 0;                 // nothing killed this wave
+        bGameStarted          = true;              // allows Player controller to call StartGame again
+        bGameOver             = false;             // allow player controller inputs again
+        bGamePaused           = false;             // game not paused
+        playerHealth          = 100;               // reset health
+        playerScore           = 0;                 // reset score
+        playerLives           = 3;                 // reset lives
+        playerJustDied        = false;             // reset to allow player to take damage again
+        playersCurrentZone    = 0;                 // reset players zone id to start zone
+        currentZone           = 0;                 // reset players checked zone to start
+        clipsLeft             = startingClips;     // initial number of clips
+        shotsLeftThisClip     = shotsInAClip;      // initial shots in a clip
+        currentSmartBombs     = 1;                 // start off with 1 smartbomb
+        smartBombsAwarded     = 0;                 // count of number awarded so far
+        nextBombScoreCheck    = smartBombPoints;   // reset to first check level
+        nextLifeScoreCheck    = extraLivesPoints;  // ALWAYS same as extraLivesPoints to start with, as check score increments during play     
+        extraLivesAwarded     = 0;                 // reset count of extra lives awarded so far in game
+
         // reset contents of display fields
-        EnemyWaveNum.SetText(      enemyWaveNumber.ToString());     // wave number
-        EnemiesRemaining.SetText(  maxEnemiesPerWave.ToString());   // enemies left this wave
-        EnemiesKilledTotal.SetText(totalEnemiesKilled.ToString());  // total enemies killed
-        LivesPlayer.SetText(       playerLives.ToString());         // lives left
-        PlayerHealth.SetText(      playerHealth.ToString());        // health
-        ScorePlayer.SetText(       playerScore.ToString());         // score
-        ClipsLeft.SetText(         clipsLeft.ToString());           // initial ammo clips left (set above)
-        CountReload.SetText(       shotsLeftThisClip.ToString());   // initial shots in a clip (set above)
+        EnemyWaveNum.SetText(      enemyWaveNumber.ToString());       // first wave
+        EnemiesRemaining.SetText(  currentZombiesPerWave.ToString()); // reset to starting number of enemies to kill
+        EnemiesKilledTotal.SetText(totalEnemiesKilled.ToString());    // no enemies killed
+        LivesPlayer.SetText(       playerLives.ToString());           // initial lives left
+        PlayerHealth.SetText(      playerHealth.ToString());          // full health
+        ScorePlayer.SetText(       playerScore.ToString());           // zero score
+        ClipsLeft.SetText(         clipsLeft.ToString());             // initial ammo clips left (set above)
+        CountReload.SetText(       shotsLeftThisClip.ToString());     // initial shots in a clip (set above)
 
         // initialise status message box
         string blank = " ";
         StatusDisplay.text = blank.ToString();
 
-        // turn off any possibly playing sounds (as could be from a restart now)
+        // turn off any possibly playing sounds (as could be after a 'game over')
         PlayCountdown(false);
         PlayCriticalCountdown(false);
 
-        // re-enable smart bomb button
+        // re-enable smart bomb button (checks with us here, and resets text on button)
         thePlayer.GetComponent<PlayerController>().SmartBombReset(); // reset smart bomb availability
 
         // re-enable crosshair target in case showing highscore entry field disabled it
@@ -663,57 +778,90 @@ public class GameplayController : MonoBehaviour
         theStartPosition.position = new UnityEngine.Vector3(36f, 0.1f, -75f);
         transform.Translate(theStartPosition.position);
 
-        // Hide highscores panel (as we may have come from end game before)
-        theHighScoresControllerScript.ShowHighScoresPanel(false); // Do not place this after StartGame()
+        // Hide highscores panel (as we may have come from "game over")
+        theHighScoresControllerScript.ShowHighScoresPanel(false); // Do NOT EVER place this after StartGame()
         
-        // allow input in player controller
+        // ok to allow input in player controller now
         thePlayer.GetComponent<PlayerController>().SetAnotherPanelInControl(false);
 
-        // destroy any (potential) leftover objects from last game
+        // destroy any (potential) leftover objects from last game caused by repeating invokes after game end
         GameObject[] theWarriors       = GameObject.FindGameObjectsWithTag("Enemy Warrior Base Object");
-        GameObject[] thePowerups       = GameObject.FindGameObjectsWithTag("Glowing Powerup");
-        GameObject[] thePowerLights    = GameObject.FindGameObjectsWithTag("Power Up");
+        GameObject[] theSuperPower     = GameObject.FindGameObjectsWithTag("Super Powerup Container");
         GameObject[] thePowerContainer = GameObject.FindGameObjectsWithTag("Powerup Container");
         GameObject[] theDrones         = GameObject.FindGameObjectsWithTag("Enemy Drone");
         GameObject[] theMissiles       = GameObject.FindGameObjectsWithTag("Missile");
+        GameObject[] theAmmo           = GameObject.FindGameObjectsWithTag("Petrol Can");
 
         // destroy warriors
         foreach (GameObject warrior in theWarriors)
         {
             // destroy them as game over
-            Destroy(warrior);
+            if (warrior != null)
+            {
+                Destroy(warrior);
+            }
+        }
+        
+        // Destroy any Super Powerup
+        foreach (GameObject superPowerups in theSuperPower)
+        {
+            // destroy them as game over
+            if (superPowerups != null)
+            {
+                Destroy(superPowerups);
+            }
         }
 
         // Destroy Powerup container (powerup & 6 lights each time)
-        foreach (GameObject powerLight in thePowerContainer)
+        foreach (GameObject powerups in thePowerContainer)
         {
             // destroy them as game over
-            Destroy(powerLight);
+            if (powerups != null)
+            {
+                Destroy(powerups);
+            }
         }
 
         // destroy drones
         foreach (GameObject drone in theDrones)
         {
             // destroy them as game over
-            Destroy(drone);
+            if (drone != null)
+            {
+                Destroy(drone);
+            }
         }
 
         // destroy missiles
         foreach (GameObject missile in theMissiles)
         {
             // destroy them as game over
-            Destroy(missile);
+            if (missile != null)
+            {
+                Destroy(missile);
+            }
+            
         }
 
-        // Start everything
-        AudioListener.pause = false; // enable sounds
-        Time.timeScale = 1f;         // reset time to normal time
+        // destroy any ammo left
+        foreach (GameObject ammo in theAmmo)
+        {
+            // destroy them as game over
+            if (ammo != null)
+            {
+                Destroy(ammo);
+            }
+        }
+
+        // Start everything going!
+        AudioListener.pause = false; // enable playing sounds
+        Time.timeScale      = 1f;    // reset time to 'normal' time
 
         // set to day Skybox initially
         UnityEngine.RenderSettings.skybox = theDaySkybox;
     }
 
-    // no longer needed as enemies no longer do searches for energy
+    // nt currently needed as enemies no longer do searches for energy too
     public void DestroyPowerUp(GameObject toKill)
     {
         // find and destroy a particular powerup
@@ -727,11 +875,11 @@ public class GameplayController : MonoBehaviour
         }
     }
 
-    // only needed when previously WAS going to get Zombies to search for energy too on a navmesh!
+    // only needed when previously WAS going to get Zombies to search for energy too
     public GameObject GetPowerUpObject() 
     {
         // returns the location of a PowerUp which isn't currently being searched for,
-        // we will need to check periodically with the Gameplay controller it hasnt been eaten by player 
+        // we will need to check periodically with the Gameplay controller it hasn't been collected already by the player 
         // in EnemyController Update()
         
         PowerUp found = null; 
@@ -782,6 +930,9 @@ public class GameplayController : MonoBehaviour
         // spawning objects when user starts game from Playercontroller
         bGameOver = false;
 
+        ImportantMessageList = new List<string>();           // create an empty 'important' message list
+        InvokeRepeating("DisplayImportantMessages", 1f, 1f); // checks list every second while game running for new messages
+
         // set pause flag & start health countdown routine as even if not in game should be running
         SetHealthCountdownPaused(true);
         InvokeRepeating("DecayPlayerHealth", 3f, 3f);
@@ -799,6 +950,8 @@ public class GameplayController : MonoBehaviour
 
         // set player start position
         theStartPosition = thePlayer.transform;
+
+        hitsToKillEnemy = startHitsToKill; // set default hits to kill an enemy
     }
 
    void Awake()
@@ -931,10 +1084,7 @@ public class GameplayController : MonoBehaviour
 
         ActivateGameExitPanel();
     }
-
-    //private int  bombResetPoints = 10000; // reset smart bomb if used every 10,000 points reached
-    //private bool bombJustReset   = false; // have we just reset smart bomb availability
-
+    
     public void UpdatePlayerScore(int scoreChange)
     {
         // update the score and display on the text panel
@@ -953,13 +1103,36 @@ public class GameplayController : MonoBehaviour
             HighScore.SetText(high.ToString());
         }
 
-        /*if ((playerScore / bombResetPoints >= 0) && !bombJustReset)
+        // give player an extra smart bomb if point score level met/exceeded
+        if ((playerScore >= nextBombScoreCheck) && (smartBombsAwarded < smartBombsMax-1) && (currentSmartBombs < smartBombsMax))
         {
+            // level exceeded, award a smart bomb if not maximum awarded or held
+            // ok to award one, we always start with one so check level minus one here!
+            smartBombsAwarded++;
+            currentSmartBombs++;
+            nextBombScoreCheck += smartBombPoints; // increment check to next level
+            
+            // inform when next one is awarded or no more
+            PostImportantStatusMessage("EXTRA SMART BOMB! " + (smartBombsAwarded < smartBombsMax - 1 ? " NEXT AT " + nextBombScoreCheck.ToString() + " POINTS!" :
+                "NO MORE BONUS BOMBS LEFT!"));
+            
+            thePlayerScript.SmartBombReset(); // always call as may have disabled if only had one bomb last time used
+        }
 
-        }*/
-    }
+        // Give player an extra life 
+        if (playerScore >= nextLifeScoreCheck && extraLivesAwarded < extraLivesMax)
+        {
+            // ok to give player another life
+            playerLives++;
+            extraLivesAwarded++;
+            nextLifeScoreCheck += extraLivesPoints; // increment to next point level
+            LivesPlayer.SetText(playerLives.ToString()); // update display
+            PostImportantStatusMessage("EXTRA LIFE AWARDED! " + (extraLivesAwarded < extraLivesMax ? "NEXT AT " + nextLifeScoreCheck.ToString() + " POINTS!" :
+                "NO MORE EXTRA LIVES AVAILABLE!"));
+        }
+}
 
-
+    // function called every few seconds (started with InvokeRepeating elsewhere)
     void DecayPlayerHealth()
     {
         // only decay health if NOT game over / NOT paused as otherwise
@@ -974,6 +1147,72 @@ public class GameplayController : MonoBehaviour
         }
     }
 
+    /* 
+     * List<string>  ImportantMessageList; // our list of displayed messages
+       private float impMsgMaxTime = 7f;   // max time an important message is displayed
+       private float impMsgMaxDelay = 4f;   // max time we delay a message before clearing current one
+       private float timeLastImpMsg = 0f;   // time last message (if any) was posted */
+
+
+    // started in Start() and only does checks when game running or not paused, clears list at end game
+    // checks / updates every second for new messages
+    void DisplayImportantMessages()
+    {
+        if (!bGameOver || !bGamePaused)
+        {
+            // display / update the messages if not paused or game over
+            if ((ImportantMessageList.Count() == 0) && (Time.time >= timeLastImpMsg + impMsgMaxTime) && (timeLastImpMsg != 0f))
+            {
+                // remove any currently displayed entry
+                ImportantStatusDisplay.text = "".ToString(); // clear it
+                timeLastImpMsg = 0f;
+            }
+
+            if ((ImportantMessageList.Count == 1) && timeLastImpMsg == 0f)
+            {
+                // first time any message displayed
+                ImportantStatusDisplay.text = ImportantMessageList[0].ToString(); // display it
+                ImportantMessageList.Clear();
+                timeLastImpMsg = Time.time;
+            }
+
+            if ((ImportantMessageList.Count == 1) && Time.time >= timeLastImpMsg + impMsgMaxTime)
+            {
+                // time for display has expired
+                ImportantStatusDisplay.text = "".ToString(); // clear it
+                ImportantMessageList.Clear(); // empty the list
+                timeLastImpMsg = 0f;
+            }
+
+            if (ImportantMessageList.Count() > 1)
+            {
+                if (Time.time >= timeLastImpMsg + impMsgMaxDelay)
+                {
+                    // ok we have more messages, so reduce the current one's display time
+                    // and display the next if the reduced display period has passed
+                    // by copying the list to a new list minus the first element, and reseting
+
+                    List<string> tempList = new List<string>();
+                    tempList = ImportantMessageList.GetRange(1, ImportantMessageList.Count() - 1); // copy leaving out first message
+                    ImportantMessageList.Clear(); // clear old out
+                    ImportantMessageList = tempList; // reset to new list
+                    timeLastImpMsg = Time.time;
+                    ImportantStatusDisplay.text = ImportantMessageList[0].ToString(); // display next message
+
+                    // play a beep on changing to new message
+                    theAudioSource.PlayOneShot(nextMessageVoice,1f);
+                }
+            }
+        }
+
+        if (bGameOver)
+        {
+            // just remove all entries & clear display
+            ImportantMessageList.Clear();                     
+        }
+    }
+
+
     public void UpdatePlayerHealth(int healthPoints)
     {
         // healthPoints can be negative to indicate damage from an attack, bomb damage,
@@ -982,7 +1221,6 @@ public class GameplayController : MonoBehaviour
 
         CheckHealthState();
     }
-
     
     public void CheckHealthState() 
     { 
@@ -997,7 +1235,7 @@ public class GameplayController : MonoBehaviour
         {
             // play health countdown music
             PlayCountdown(true);
-            PostStatusMessage("COLLECT POWERUPS!");
+            PostStatusMessage("GET POWERUPS!");
         }
 
         if (playerHealth > warnCollectPowerups)
@@ -1010,13 +1248,13 @@ public class GameplayController : MonoBehaviour
         if (playerHealth <=warnCriticalPowerups && playerHealth >warnImminentDeath)
         {
             // display critical health message
-            PostStatusMessage("HEALTH CRITICAL!");
+            PostStatusMessage("HEALTH CRITICAL! GET POWERUPS NOW!");
         }
 
         if (playerHealth <= warnImminentDeath)
         {
             // imminent death state
-            PostImportantStatusMessage("DEATH IMMINENT - COLLECT POWERUPS NOW!");
+            PostStatusMessage("DEATH IMMINENT - GET POWERUPS NOW!");
             PlayCriticalCountdown(true); // play critical noise
         }
 
@@ -1037,7 +1275,7 @@ public class GameplayController : MonoBehaviour
         // play health countdown music
         if (playIt == true && !playingCountdown)
         {
-            PostStatusMessage("COLLECT POWERUPS!");
+            PostStatusMessage("GET POWERUPS!");
             
             // not playing it, so play it
             _outputMixer = "No Change"; // set to normal levels
@@ -1129,25 +1367,32 @@ public class GameplayController : MonoBehaviour
 
         if (!IsGameOver())
         {
-            string blank = "YOU LOST A LIFE!";
-            PostStatusMessage(blank);
+            if (ImportantMessageList.Count == 0)
+            {
+                // fudge for problem with empty list at moment
+                PostImportantStatusMessage("   ");
+            }
         }
 
         if (playerLives <= 0)
         {
             playerLives = 0;
+            PostImportantStatusMessage("GAME OVER!");
 
             // Set Game Over, Player controller will check isGameOver() and allow restart
             SetGameOver();
         }
         else
         {
+            string blank = "YOU LOST A LIFE!";
+            PostImportantStatusMessage(blank);
+
             // reset for new life
             playerHealth = 100; // reset health
 
             // delay new hits from current enemies
             playerJustDied = true;
-            PostImportantStatusMessage("YOU HAVE 5 SECONDS UNTIL ATTACKS COUNT!");
+            PostImportantStatusMessage("NO ATTACKS ALLOWED FOR FIVE SECONDS!");
             StartCoroutine("PreventHitsTimer");
 
             PlayerHealth.SetText(playerHealth.ToString());
@@ -1160,6 +1405,13 @@ public class GameplayController : MonoBehaviour
         }
  
         LivesPlayer.text = playerLives.ToString(); // update number of lives
+
+        if (currentSmartBombs < smartBombsMax)
+        {
+            // give another smart bomb
+            currentSmartBombs++;
+            thePlayerScript.SmartBombReset();
+        }
     }
 
     // clears message box for general messages during gameplay
@@ -1171,26 +1423,18 @@ public class GameplayController : MonoBehaviour
         StatusDisplay.text = dispString.ToString();
     }
 
-    // clears message box for IMPORTANT game information during gameplay
-    IEnumerator ClearImportantStatusDisplay()
-    {
-        // waits 7 seconds without blocking before continuing execution
-        yield return new WaitForSeconds(7.0f);
-        string dispString = "";
-        ImportantStatusDisplay.text = dispString.ToString();
-    }
-
     public void PostStatusMessage(string sStatusMsg)
     {
         // post a general message
         StatusDisplay.text = sStatusMsg.ToString();
         StartCoroutine("ClearStatusDisplay"); // clear 4 secs later
     }
+    
     public void PostImportantStatusMessage(string sStatusMsg)
     {
-        // post an important message
-        ImportantStatusDisplay.text = sStatusMsg.ToString();
-        StartCoroutine("ClearImportantStatusDisplay"); // clear 6 secs later
+        // post an important message (add it to the list of messages being displayed)
+        // just add it to our list of displayed messages
+        ImportantMessageList.Add(sStatusMsg);
     }
 
     public int GetPlayerHealth()
@@ -1254,14 +1498,15 @@ public class GameplayController : MonoBehaviour
 
             if ((timerCountdown - elapsedSecs) == 3)
             {
-                // play 3-2-1 voice
-                _outputMixer = "Voice Up 10db"; // group to output the audio listener to
+                // increase clip vol by 5db
+                _outputMixer = "Voice Up 5db"; // group to output the audio listener to
                 GetComponent<AudioSource>().outputAudioMixerGroup = theMixer.FindMatchingGroups(_outputMixer)[0];
-                theAudioSource.clip = the321Voice;
-                //theAudioSource.volume = 1f;
-                theAudioSource.time = 0f;
-                theAudioSource.PlayOneShot(the321Voice,1f);
-                StartCoroutine("ResetVolumeToNormal",the321Voice);
+                
+                // play 3-2-1 voice
+                theAudioSource.PlayOneShot(the321Voice, 1f);
+
+                // start Coroutine to reset volume to normal level
+                StartCoroutine("ResetVolumeToNormal", the321Voice);
             }
         }
 
@@ -1269,7 +1514,6 @@ public class GameplayController : MonoBehaviour
         ShotsLeftText.SetText("SHOTS".ToString());    // set to available
         CountReload.SetText(shotsInAClip.ToString()); // set to initial value
         elapsedSecs = 0; // reset timer counter
-        clipsLeft   = 1; // we give a bonus clip every time a reload takes place regardless
         thePlayer.GetComponent<PlayerController>().SetGunAvailable(); // gun is nowavailable
 
         // Allow ammo spawning again

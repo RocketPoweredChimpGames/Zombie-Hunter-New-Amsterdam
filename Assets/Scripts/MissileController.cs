@@ -92,6 +92,13 @@ public class MissileController : MonoBehaviour
             collision.gameObject.CompareTag("Mailbox") ||
             collision.gameObject.CompareTag("Fire Hydrant") ||
             collision.gameObject.CompareTag("Kiosk") ||
+            collision.gameObject.CompareTag("Petrol Can") ||
+            collision.gameObject.CompareTag("Fuel Dump 0") ||
+            collision.gameObject.CompareTag("Fuel Dump 1") ||
+            collision.gameObject.CompareTag("Fuel Dump 2") ||
+            collision.gameObject.CompareTag("Fuel Dump 3") ||
+            collision.gameObject.CompareTag("Fuel Dump 4") ||
+            collision.gameObject.CompareTag("Fuel Dump 5") ||
             collision.gameObject.CompareTag("Patio"))
         {
             // missile has landed (or hit end barriers/ landed on a powerup/ trees etc,

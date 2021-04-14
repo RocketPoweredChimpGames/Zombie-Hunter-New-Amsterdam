@@ -70,7 +70,7 @@ public class PlayerController : MonoBehaviour
     private bool  bReloadVoice         = false; // no empty gun noise till this is set true
     private bool  bGunShooting         = false; // is gun currently shooting, delayed by coroutine to prevent spamming space key
     public  float damageDone           = 20f;   // damage% per hit on enemy
-    public  float rangeForHits         = 2.1f;  // range for raycast for hits
+    public  float rangeForHits         = 2f;    // range for gun raycast for hits
     private float smartBombRange       = 60f;   // destruction range for the smart bomb
     private bool  bBreathingPlaying    = false; // have we started playing audio (on forward/back movement)
 
@@ -183,7 +183,7 @@ public class PlayerController : MonoBehaviour
         if (smartBombButton != null)
         {
             // set text and enable it
-            smartBombButton.GetComponentInChildren<Text>().text = "Smart Bomb";
+            smartBombButton.GetComponentInChildren<Text>().text = "1 SMART BOMB";
             smartBombButton.interactable = true;
             smartBombAvailable = true;
         }
@@ -549,7 +549,6 @@ public class PlayerController : MonoBehaviour
                 if (Input.GetKeyDown(KeyCode.G))
                 {
                     // Destroy all enemies with smart bomb
-                    theGameControllerScript.PostStatusMessage("SMART BOMB USED!");
                     DestroyAllEnemies();
                 }
 
@@ -881,18 +880,39 @@ public class PlayerController : MonoBehaviour
         // if we have a SmartBomb we can destroy all enemies at once
         if (smartBombAvailable)
         {
-            smartBombAvailable = false; // always first line of code in here!
+            // check game controller if we should turn off smart bomb availability
+            if (theGameControllerScript.GetCurrentSmartBombs() >= 1)
+            {
+                // we have smart bomb(s)
+                theGameControllerScript.SmartBombUsed(); // decrease by one
+            }
+
+            if ((theGameControllerScript.GetCurrentSmartBombs() == 0))
+            {
+                smartBombAvailable = false; // no smart bombs OR no more available to us
+            }
+            
             enemyAttacker = null;
 
             StartCoroutine("SmartBombExplosion");
             
-
-            // find and destroy all enemies!
-            // reset bomb caption, and disable it
+            // find and destroy all in-range enemies
+            // reset bomb caption, and disable if necessary
             if (smartBombButton != null)
             {
-                smartBombButton.GetComponentInChildren<Text>().text = "BOMB USED";
-                smartBombButton.interactable = false;
+                // disable if no bombs left / or available
+                if (!smartBombAvailable)
+                {
+                    smartBombButton.GetComponentInChildren<Text>().text = "NO BOMBS";
+                    smartBombButton.interactable = false;
+                }
+                else
+                {
+                    int n = theGameControllerScript.GetCurrentSmartBombs();
+                    string s = ((n == 1) ? " SMART BOMB" : " SMART BOMBS");
+
+                    smartBombButton.GetComponentInChildren<Text>().text = n.ToString() + s;
+                }
             }
 
             // get all enemies
@@ -922,6 +942,19 @@ public class PlayerController : MonoBehaviour
                     }
                 }
             }
+
+            if (nKilled > 0)
+            {
+                theGameControllerScript.PostImportantStatusMessage("YOU KILLED " + nKilled.ToString() + (nKilled == 1 ? " ENEMY IN RANGE!" : " ENEMIES IN RANGE!"));
+            }
+            else
+            {
+                theGameControllerScript.PostImportantStatusMessage("SORRY! NO ENEMIES WERE IN RANGE!");
+            }
+
+            int nBomb = theGameControllerScript.GetCurrentSmartBombs();
+            theGameControllerScript.PostImportantStatusMessage("YOU HAVE " + nBomb.ToString() +
+                (nBomb ==1 ? " BOMB REMAINING!" : " BOMBS REMAINING!"));
         }
         else
         {
@@ -932,6 +965,9 @@ public class PlayerController : MonoBehaviour
 
             theAudio.clip = smartBombUsed;
             theAudio.PlayOneShot(smartBombUsed, 1f);
+
+            theGameControllerScript.PostStatusMessage("   "); // bodge at minute
+            theGameControllerScript.PostStatusMessage("NO SMART BOMBS!");
         }
     }
 
@@ -942,7 +978,10 @@ public class PlayerController : MonoBehaviour
         if (smartBombButton != null)
         {
             smartBombButton.interactable = true;
-            smartBombButton.GetComponentInChildren<Text>().text = "SMART BOMB";
+
+            int    numBombs = theGameControllerScript.GetCurrentSmartBombs();
+            string s        = ((numBombs == 1) ? " SMART BOMB" : " SMART BOMBS");
+            smartBombButton.GetComponentInChildren<Text>().text = numBombs.ToString() + s;
         }
 
         // make bomb available again
@@ -960,8 +999,12 @@ public class PlayerController : MonoBehaviour
         UpdateClipsDisplay(); // will always have 1 clip available after a reload before any is newly collected
         UpdateShotsDisplay(); // will now reset to starting value as shots fired is zero
 
-        // post display message
+        // post "weapon available" message
         theGameControllerScript.PostImportantStatusMessage("WEAPON NOW AVAILABLE!"); // clears after 6/7 secs
+
+        // post number of clips & shots after reload
+        theGameControllerScript.PostStatusMessage(theGameControllerScript.GetNumberOfClipsLeft().ToString() + " CLIPS, " + 
+            theGameControllerScript.GetShotsInMagazine().ToString() + " SHOTS REMAINING!");
     }
 
     IEnumerator PlayGunReloaded()
@@ -1016,7 +1059,7 @@ public class PlayerController : MonoBehaviour
         // show message nearly empty
         if ((maxShotsInMagazine - shotsFired <= 10) && clipsLeft == 0)
         {
-            theGameControllerScript.PostImportantStatusMessage("WEAPON NEARLY EMPTY!");
+            theGameControllerScript.PostStatusMessage("WEAPON NEARLY EMPTY!");
         }
 
         // check if we have already exceeded magazine contents before allowing shot
@@ -1085,9 +1128,6 @@ public class PlayerController : MonoBehaviour
                 // check who collided with us - if player update game manager with score        
                 if (pointHit.transform.CompareTag("Enemy Warrior"))
                 {
-                    // hit warrior (zombie) - update score in game manager
-                    theGameControllerScript.UpdatePlayerScore(pointsPerEnemyHitShot); // one point per hit
-
                     // increment hit count for the object we have hit - but only if not dying
                     EnemyController theEnemyController = pointHit.rigidbody.gameObject.GetComponent<EnemyController>();
 
@@ -1098,6 +1138,8 @@ public class PlayerController : MonoBehaviour
                         {
                             // not dead so add a hit
                             theEnemyController.AddHit();
+                            // and update score in game manager
+                            theGameControllerScript.UpdatePlayerScore(pointsPerEnemyHitShot); // one point per hit
                         }
                     }
                 }
