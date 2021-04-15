@@ -239,13 +239,13 @@ public class PowerUpController : MonoBehaviour
             // get collider and turn off
             gameObject.GetComponent<Collider>().enabled = false;
 
-            GetComponent<AudioSource>().PlayOneShot(powerBoing,0.8f);
+            GetComponent<AudioSource>().PlayOneShot(powerBoing, 1f);
 
             // update score in game manager
             theGameControllerScript.UpdatePlayerScore(powerUpPoints * scoreMultiplier);
 
             string points = (powerUpPoints * scoreMultiplier).ToString() + " POINTS SCORED! ";
-            string bonus  = "- LUCKY! BONUS HEALTH "; // bonus points awarded
+            string bonus  = "- BONUS HEALTH "; // bonus points awarded
             int    bonusHealth = 0;
 
             if (bHitFirstTime)

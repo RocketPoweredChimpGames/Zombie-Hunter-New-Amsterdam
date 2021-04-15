@@ -94,6 +94,7 @@ TagManager:
   - Fuel Dump 4
   - Fuel Dump 5
   - Petrol Can
+  - Static Text
   layers:
   - Default
   - TransparentFX

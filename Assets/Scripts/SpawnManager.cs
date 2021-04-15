@@ -284,7 +284,7 @@ public class SpawnManager : MonoBehaviour
                 if (powerUpSpawnZone == 1)
                 {
                     // new large area in front of church
-                    randomX = Random.Range(13f, 155f);
+                    randomX = Random.Range(30f, 160f);
                     randomZ = Random.Range(0f, 175f);
                 }
 
@@ -316,22 +316,6 @@ public class SpawnManager : MonoBehaviour
                 newPowerup = Instantiate(pillToSpawn, randomSpawnPos, Quaternion.identity); // spawn it
                 theGameManager.SetPowerUpEntry(newPowerup, timeSpawned); // store object & time of creation in game manager
             }
-
-         /*   // Spawn a super powerup if time for next spawn (but allow it to be a little bit random
-            // so not in same zones all the time (max 15 second gap, so could spawn in a different zone now (may work)
-
-            float randomTime = Random.Range(0f, 0.25f);
-
-            if ((Time.realtimeSinceStartup - timeLastSuperPowerup) / 60f >= (superPowerInterval + randomTime) && !theGameControllerScript.IsGamePaused())
-            {
-                // Spawn the Super Powerup in current spawn zone a little bit away from Powerup just spawned
-                GameObject superPowerup = Instantiate(PowerPills[1], new Vector3(randomX + 2f, 0.1f, randomZ - 2f), Quaternion.identity); // the Super Powerup Container object
-                theGameControllerScript.PostImportantStatusMessage("SUPER POWERUP IN ZONE " + powerUpSpawnZone + ", YOU HAVE " + superPowerExpiryTime + " MINS TO COLLECT IT!");
-                timeLastSuperPowerup = Time.realtimeSinceStartup;
-
-                // play fanfare noise
-                StartCoroutine("PlaySuperPowerupFanfare");
-            }  */
         }
     }
 
@@ -349,7 +333,7 @@ public class SpawnManager : MonoBehaviour
             if (powerUpSpawnZone == 1)
             {
                 // new large area in front of church
-                randomX = Random.Range(13f, 155f);
+                randomX = Random.Range(30f, 100f);
                 randomZ = Random.Range(0f, 175f);
             }
 

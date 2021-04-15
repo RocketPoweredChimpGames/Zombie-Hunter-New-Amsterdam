@@ -41,36 +41,41 @@ public class DroneController : MonoBehaviour
     // Update is called once per frame
     void Update()
     {
-        Vector3 currentPos = transform.position;
-
-        // destroy at a certain distance past lower boundary to simulate 
-        // flying off into distance
-        if (currentPos.z <= zBoundary)
+        if (!theGameControllerScript.IsGameOver() || !theGameControllerScript.IsGamePaused())
         {
-            // destroy drone
-            Destroy(gameObject);
-        }
-        else
-        {
-            // move drone on flight path, needs to bomb player if within a certain range of flight path
-            // and also increase in height a bit as it goes along to avoid buildings
-            /*Vector3 droneFlightPath = new Vector3(currentPos.x, 
-                                                  currentPos.y + (mustAvoidBuildingsVectorHeight.y - currentPos.y), -115f);*/
+            Vector3 currentPos = transform.position;
 
-            Vector3 droneFlightPath = new Vector3(currentPos.x,
-                                                  currentPos.y + (mustAvoidBuildingsVectorHeight.y - currentPos.y), zBoundary -5f);
-
-            Vector3 direction       = droneFlightPath - transform.position;
-            transform.Translate(direction * Time.deltaTime * droneSpeed);
-
-            // drop a bomb (falls under gravity)
-            if (!missileLaunched)
+            // destroy at a certain distance past lower boundary to simulate 
+            // flying off into distance
+            if (currentPos.z <= zBoundary)
             {
-                StartCoroutine(DropABomb());
-                missileLaunched = true; // destroys on hitting ground or barriers
+                // destroy drone
+                Destroy(gameObject);
+            }
+            else
+            {
+                // move drone on flight path, needs to bomb player if within a certain range of flight path
+                // and also increase in height a bit as it goes along to avoid buildings
+                /*Vector3 droneFlightPath = new Vector3(currentPos.x, 
+                                                      currentPos.y + (mustAvoidBuildingsVectorHeight.y - currentPos.y), -115f);*/
+
+                Vector3 droneFlightPath = new Vector3(currentPos.x,
+                                                      currentPos.y + (mustAvoidBuildingsVectorHeight.y - currentPos.y), zBoundary - 5f);
+
+                Vector3 direction = droneFlightPath - transform.position;
+                transform.Translate(direction * Time.deltaTime * droneSpeed);
+
+                // drop a bomb (falls under gravity)
+                if (!missileLaunched)
+                {
+                    StartCoroutine(DropABomb());
+                    missileLaunched = true; // destroys on hitting ground or barriers
+                }
             }
         }
+        
     }
+
     IEnumerator DropABomb()
     {
         yield return new WaitForSeconds(1.25f + Random.Range(0f, 1.25f));

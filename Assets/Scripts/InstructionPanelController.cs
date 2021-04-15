@@ -15,6 +15,9 @@ public class InstructionPanelController : MonoBehaviour
 
     private GameObject               theGameController       = null; // game controller
     private GameplayController       theGameControllerScript = null; // game controller script
+    
+    // Sky box to be used at start of game 22/10/2020
+    public Material theDaySkybox; // daytime sky box
 
     // Start is called before the first frame update
     void Start()
@@ -115,6 +118,9 @@ public class InstructionPanelController : MonoBehaviour
         {
             Debug.Log("Can't find Player Score Panel from Instruction Panel start()");
         }
+
+        // set to day Skybox initially   21/10/2020
+        UnityEngine.RenderSettings.skybox = theDaySkybox;
     }
 
     // Update is called once per frame
@@ -126,6 +132,11 @@ public class InstructionPanelController : MonoBehaviour
             ActivatePlayerPanel();
             theGameControllerScript.SetGameDefaults(); // reset ALL relevant variables to defaults
             theGameControllerScript.StartGame(true); // starts spawning and game running on next update() in other controllers
+                                                     // start background music from beginning
+            theGameControllerScript.backgroundSource.time = 30f;
+            theGameControllerScript.backgroundSource.volume = 0.45f;
+            theGameControllerScript.backgroundSource.loop = true;
+            theGameControllerScript.backgroundSource.Play();
         }
 
         if (Input.GetKeyDown(KeyCode.C))
