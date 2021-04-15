@@ -2,6 +2,8 @@
 using System;
 using System.Collections;
 using System.Collections.Generic;
+using TMPro;
+//using UnityEditor.Animations;
 using UnityEngine;
 using UnityEngine.Audio;
 using UnityEngine.Experimental.GlobalIllumination;
@@ -299,7 +301,7 @@ public class PlayerController : MonoBehaviour
             theBombExplosion.SetActive(false);
         }
     }
-
+    
     IEnumerator ShootFlamethrower()
     {
         //  Plays Flamethrower particle effect at 'Flame Point' on Player Character
@@ -308,10 +310,10 @@ public class PlayerController : MonoBehaviour
         theFlameThrower.SetActive(true); // set it active
 
         // play flamethrower sound
-        theAudio.enabled = true;
-        _outputMixer = "No Change"; // group to output the audio listener to (no volume change)
-        GetComponent<AudioSource>().outputAudioMixerGroup = theMixer.FindMatchingGroups(_outputMixer)[0];
-        theAudio.clip = laserFire;
+        //theAudio.enabled = true;
+        //_outputMixer = "No Change"; // group to output the audio listener to (no volume change)
+        //GetComponent<AudioSource>().outputAudioMixerGroup = theMixer.FindMatchingGroups(_outputMixer)[0];
+
         theAudio.PlayOneShot(laserFire, 1f);
 
         Quaternion shootAngle = transform.rotation;  // current rotation of player
@@ -655,22 +657,23 @@ public class PlayerController : MonoBehaviour
         else return false;
     }
 
-    // Toggle Night Mode on/off at players command
+    // Toggle Night Mode on/off at players command REWRITE THIS AS dubplicates code when a bool will do!
     public void ToggleNightMode()
     {
+        // find main light
         GameObject theSceneLight = GameObject.FindGameObjectWithTag("Main Lighting");
         Light theLight = theSceneLight.GetComponent<Light>();
-
         
         if (!bNightModeOn)
         {
-            // set to night time mode!
-            // set skybox to Night Sky
+            // set to Night Mode
+
+            // change skybox to Night Sky
             UnityEngine.RenderSettings.skybox = nightSkyBox;
 
             if (theLight != null)
             {
-                // set intensity to dark
+                // set intensity to v.dark
                 theLight.intensity = 0f;
 
                 UnityEngine.RenderSettings.ambientIntensity    = 0.2f; // Will make it dark (adjust as necessary for best effect)
@@ -688,7 +691,7 @@ public class PlayerController : MonoBehaviour
             theFireFlies.GetComponentInChildren<ParticleSystem>().playOnAwake = true;
             theFireFlies.GetComponentInChildren<ParticleSystem>().Play();
 
-            // turn on candles display
+            // turn on table candles display
             foreach (GameObject aCandle in theCandles)
             {
                 aCandle.SetActive(true);
@@ -760,6 +763,37 @@ public class PlayerController : MonoBehaviour
 
             // Turn on Headlamp
             theHeadLamp.SetActive(true);
+
+            // change UI display text to night mode "ORANGE"
+            GameObject[] staticTexts = GameObject.FindGameObjectsWithTag("Static Text");
+
+            foreach (GameObject displayedText in staticTexts)
+            {
+                if (displayedText != null)
+                {
+                    // get the TMP_Text component
+                    TMP_Text theText = displayedText.GetComponent<TMP_Text>();
+                    theText.color = new Color32(243, 142, 0, 255); // light orange
+                }
+            }
+
+            // change important message display colour to Orange
+            GameObject theMsg = GameObject.FindGameObjectWithTag("Important Status Display");
+
+            if (theMsg != null)
+            {
+                // get the TMP_Text component
+                TMP_Text theText = theMsg.GetComponent<TMP_Text>();
+                theText.color = new Color32(243, 142, 0, 255); // light orange
+            }
+
+            // turn the crosshair target "orange"
+            GameObject theTarget = GameObject.FindGameObjectWithTag("Crosshair Target");
+            if (theTarget)
+            {
+                Image theImage = theTarget.GetComponent<Image>();
+                theImage.color = new Color32(243, 142, 0, 255); // light orange
+            }
         }
         else
         {
@@ -845,6 +879,37 @@ public class PlayerController : MonoBehaviour
                 aCandle.SetActive(false);
                 aCandle.GetComponentInChildren<ParticleSystem>().playOnAwake = false;
                 aCandle.GetComponentInChildren<ParticleSystem>().Stop();
+            }
+
+            // change UI display text back to 'white'
+            GameObject[] staticTexts = GameObject.FindGameObjectsWithTag("Static Text");
+
+            foreach (GameObject displayedText in staticTexts)
+            {
+                if (displayedText != null)
+                {
+                    // get the TMP_Text component
+                    TMP_Text theText = displayedText.GetComponent<TMP_Text>();
+                    theText.color = new Color32(255,255,255, 255); // white colour
+                }
+            }
+
+            // change important message display colour to Orange
+            GameObject theMsg = GameObject.FindGameObjectWithTag("Important Status Display");
+
+            if (theMsg != null)
+            {
+                // get the TMP_Text component
+                TMP_Text theText = theMsg.GetComponent<TMP_Text>();
+                theText.color = new Color32(122, 255, 0, 255); // light green
+            }
+            
+            // turn the crosshair target "white"
+            GameObject theTarget = GameObject.FindGameObjectWithTag("Crosshair Target");
+            if (theTarget)
+            {
+                Image theImage = theTarget.GetComponent<Image>();
+                theImage.color = new Color32(255, 255, 255, 255); // white
             }
 
             // Turn off Headlamp
@@ -945,10 +1010,12 @@ public class PlayerController : MonoBehaviour
 
             if (nKilled > 0)
             {
+                theGameControllerScript.PostImportantStatusMessage("  ");
                 theGameControllerScript.PostImportantStatusMessage("YOU KILLED " + nKilled.ToString() + (nKilled == 1 ? " ENEMY IN RANGE!" : " ENEMIES IN RANGE!"));
             }
             else
             {
+                theGameControllerScript.PostImportantStatusMessage("  ");
                 theGameControllerScript.PostImportantStatusMessage("SORRY! NO ENEMIES WERE IN RANGE!");
             }
 

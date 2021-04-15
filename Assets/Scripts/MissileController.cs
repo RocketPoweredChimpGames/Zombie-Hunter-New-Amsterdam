@@ -45,19 +45,22 @@ public class MissileController : MonoBehaviour
     // Update is called once per frame
     void Update()
     {
-        Vector3 theGround = new Vector3(transform.position.x, 0.0f, -30f);
-        
-        if (Vector3.Distance(theGround, transform.position) > 0f)
+        if (!theGameControllerScript.IsGameOver() || !theGameControllerScript.IsGamePaused())
         {
-            // need to move towards the ground
-            Vector3 direction = (theGround - transform.position).normalized;
-            transform.Translate(direction * Time.deltaTime * 0.01f);  // *2f);
-        }
+            Vector3 theGround = new Vector3(transform.position.x, 0.0f, -30f);
 
-        if (transform.position.y < -1)
-        {
-            // we overshot and missed somehow so tidyup
-            Destroy(this.gameObject);
+            if (Vector3.Distance(theGround, transform.position) > 0f)
+            {
+                // need to move towards the ground
+                Vector3 direction = (theGround - transform.position).normalized;
+                transform.Translate(direction * Time.deltaTime * 0.01f);  // *2f);
+            }
+
+            if (transform.position.y < -1)
+            {
+                // we overshot and missed somehow so tidyup
+                Destroy(this.gameObject);
+            }
         }
     }
 
@@ -139,7 +142,7 @@ public class MissileController : MonoBehaviour
         GetComponent<AudioSource>().clip        = missileExplosion;
         GetComponent<AudioSource>().playOnAwake = true;
         GetComponent<AudioSource>().volume      = 0.25f;
-        GetComponent<AudioSource>().Play(); 
+        GetComponent<AudioSource>().PlayOneShot(missileExplosion, 1f); 
         
         //  play explosion particle effect
         if (theBombFlames != null)
@@ -150,7 +153,7 @@ public class MissileController : MonoBehaviour
         GameObject thePlayer = theGameControllerScript.thePlayer;
 
         // Give Player damage if too close to explosion
-        if (Vector3.Distance(thePlayer.transform.position, transform.position) < 15f)
+        if (Vector3.Distance(thePlayer.transform.position, transform.position) < 25f)
         {
             // player within range to take blast wave damage
             theGameControllerScript.UpdatePlayerScore(-10);
@@ -158,7 +161,8 @@ public class MissileController : MonoBehaviour
         }
 
         // suspend deletiom for a bit
-        yield return new WaitForSeconds(0.01f);
+        //yield return new WaitForSeconds(0.01f);
+        yield return new WaitForSeconds(missileExplosion.length);
 
         //  set it dead if not destroyed already (added due to timing issues) at end of animation clip
         if (theBombFlames != null)

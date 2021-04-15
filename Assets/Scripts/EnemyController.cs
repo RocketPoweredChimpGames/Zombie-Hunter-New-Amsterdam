@@ -303,12 +303,6 @@ public class EnemyController : MonoBehaviour
                 changeState = true;
             }
 
-            // start a coroutine here to play a different noise when closing in on player ONLY
-            //if ((Vector3.Distance(thePlayer.transform.position, transform.position) <= 10f) && !attackingPlayer && !IsDying())
-            //{
-                //StartCoroutine("PlayNearToPlayerNoise");
-            //}
-
             if ((Vector3.Distance(thePlayer.transform.position, transform.position) <= 2.5f) && !attackingPlayer && !IsDying())
             {
                 //Debug.Log("attacking player! - distance between" + Vector3.Distance(thePlayer.transform.position, transform.position));
@@ -320,8 +314,6 @@ public class EnemyController : MonoBehaviour
                 // start coroutine to play attack sounds until cancelled
                 StartCoroutine("PlayZombieAttack");
             }
-
-            
 
             if (attackingPlayer && !IsDying())
             {
@@ -402,28 +394,39 @@ public class EnemyController : MonoBehaviour
         // play a randomly selected Zombie attack noise, and at end change it to a different random one
         while (attackingPlayer)
         {
-            if (!theAudioSource.isPlaying)
+            // check if ok to play more clips
+            if (theGameControllerScript.GetNumberAttackers() < theGameControllerScript.GetAttackersMax())
             {
-                // nothing playing - so play a clip
+                theGameControllerScript.IncreaseAttackers();
+
+                // ok to play
                 AudioClip clipToPlay;
                 int clipNum = UnityEngine.Random.Range(0, 3);
 
                 switch (clipNum)
                 {
-                    case 1:  clipToPlay = shortAttack;   break;
-                    case 2:  clipToPlay = longAttack;    break;
-                    case 3:  clipToPlay = longestAttack; break;
-                    default: clipToPlay = longAttack;    break;
+                    case 1: clipToPlay = shortAttack; break;
+                    case 2: clipToPlay = longAttack; break;
+                    case 3: clipToPlay = longestAttack; break;
+                    default: clipToPlay = shortAttack; break;
                 }
 
                 theAudioSource.enabled = true;
-                theAudioSource.PlayOneShot(clipToPlay, 1f);
+                theAudioSource.PlayOneShot(clipToPlay, 0.8f);
 
                 yield return new WaitForSeconds(clipToPlay.length);
             }
-            else yield return null;
+            else
+            {
+                yield return null;
+            }
         }
 
+        if (!attackingPlayer)
+        {
+            theGameControllerScript.DecreaseAttackers();
+        }
+        
         yield return null;
     }
 
@@ -563,9 +566,8 @@ public class EnemyController : MonoBehaviour
         // update kill count display
         theGameControllerScript.UpdateEnemiesKilled();
 
-        // set to enemy is falling back animation
-        // had problems with this as even though has end time it went
-        // back to idle or something grrrr!
+        // set to enemy 'is_falling_back' animation
+        // had problems with this as even though has end time it goes back to idle or something
             
         // check if ended already
         if (!theAnimator.GetCurrentAnimatorStateInfo(0).IsName("Z_FallingBack"))
@@ -582,13 +584,19 @@ public class EnemyController : MonoBehaviour
         }
             
         // set & play audio clip
-        AudioSource theSource = GetComponent<AudioSource>();
-        theSource.playOnAwake = true;
-        theSource.clip = dyingScreech;
-        theSource.PlayOneShot(dyingScreech,1f);
+        if (theGameControllerScript.GetNumberAttackers() < theGameControllerScript.GetAttackersMax())
+        {
+            // play audio
+            theGameControllerScript.IncreaseAttackers();
+            theAudioSource.playOnAwake = true;
+            theAudioSource.clip = dyingScreech;
+            theAudioSource.PlayOneShot(dyingScreech, 0.8f);
+        }
 
         // remove our entry in array of gameobjects being separated apart (to prevent character clipping elsewhere)
         //this.GetComponent<EnemySeparation>().RemoveDestroyedEnemy(gameObject);
+
+        theGameControllerScript.DecreaseAttackers(); // decrease attackers now dying
 
         // delay destruction till animation completes
         StartCoroutine("CancelIsShot");

@@ -338,7 +338,7 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: 4aa8bc4017dc7d248bb3fde8a8dff84b, type: 3}
   m_Name: 
   m_EditorClassIdentifier: 
-  superPowerBoing: {fileID: 8300000, guid: 97dbe75cd91a4c847835c5af8931f18a, type: 3}
+  superPowerBoing: {fileID: 8300000, guid: 8504e27c127ee1d4fbbf1ff1f2e2f22f, type: 3}
 --- !u!1001 &8689751784907077753
 PrefabInstance:
   m_ObjectHideFlags: 0
